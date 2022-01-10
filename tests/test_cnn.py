@@ -15,6 +15,7 @@ from stable_baselines3.common.vec_env import DummyVecEnv, VecFrameStack, VecTran
 
 @pytest.mark.parametrize("model_class", [A2C, PPO, SAC, TD3, DQN])
 def test_cnn(tmp_path, model_class):
+    print(tmp_path, 'xxxxx\n')
     SAVE_NAME = "cnn_model.zip"
     # Fake grayscale with frameskip
     # Atari after preprocessing: 84x84x1, here we are using lower resolution
