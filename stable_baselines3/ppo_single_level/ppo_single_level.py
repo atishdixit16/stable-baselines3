@@ -6,13 +6,13 @@ import torch as th
 from gym import spaces
 from torch.nn import functional as F
 
-from stable_baselines3.common.on_policy_algorithm import OnPolicyAlgorithm
+from stable_baselines3.common.on_policy_algorithm_single_level import OnPolicyAlgorithmSingleLevel
 from stable_baselines3.common.policies import ActorCriticPolicy
 from stable_baselines3.common.type_aliases import GymEnv, MaybeCallback, Schedule
 from stable_baselines3.common.utils import explained_variance, get_schedule_fn
 
 
-class PPO_SL(OnPolicyAlgorithm):
+class PPO_SL(OnPolicyAlgorithmSingleLevel):
     """
     Proximal Policy Optimization algorithm (PPO) (clip version)
 
@@ -67,7 +67,7 @@ class PPO_SL(OnPolicyAlgorithm):
     def __init__(
         self,
         policy: Union[str, Type[ActorCriticPolicy]],
-        env: Union[GymEnv, str],
+        env: 'list[Union[GymEnv, str]]',
         learning_rate: Union[float, Schedule] = 3e-4,
         n_steps: int = 2048,
         batch_size: int = 64,
