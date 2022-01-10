@@ -95,13 +95,16 @@ class OnPolicyAlgorithmSingleLevel(BaseAlgorithm):
         assert len(env)==1, 'environment list should contain only one element'
         self.env_array = env
 
-        self.n_steps = n_steps
+        assert len(n_steps)==len(env), 'n_step list should be of same length as that of env list'
+        self.n_steps = n_steps[0]
+        self.n_steps_array = n_steps
+
         self.gamma = gamma
         self.gae_lambda = gae_lambda
         self.ent_coef = ent_coef
         self.vf_coef = vf_coef
         self.max_grad_norm = max_grad_norm
-        self.rollout_buffer = None
+        self.rollout_buffer_array = []
 
         if _init_setup_model:
             self._setup_model()
@@ -112,15 +115,15 @@ class OnPolicyAlgorithmSingleLevel(BaseAlgorithm):
 
         buffer_cls = DictRolloutBuffer if isinstance(self.observation_space, gym.spaces.Dict) else RolloutBuffer
 
-        self.rollout_buffer = buffer_cls(
-            self.n_steps,
+        self.rollout_buffer_array.append ( buffer_cls(
+            self.n_steps_array[0],
             self.observation_space,
             self.action_space,
             device=self.device,
             gamma=self.gamma,
             gae_lambda=self.gae_lambda,
             n_envs=self.n_envs,
-        )
+        ) )
         self.policy = self.policy_class(  # pytype:disable=not-instantiable
             self.observation_space,
             self.action_space,
@@ -251,7 +254,7 @@ class OnPolicyAlgorithmSingleLevel(BaseAlgorithm):
 
         while self.num_timesteps < total_timesteps:
 
-            continue_training = self.collect_rollouts(self.env_array[0], callback, self.rollout_buffer, n_rollout_steps=self.n_steps)
+            continue_training = self.collect_rollouts(self.env_array[0], callback, self.rollout_buffer_array[0], n_rollout_steps=self.n_steps)
 
             if continue_training is False:
                 break

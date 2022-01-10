@@ -23,9 +23,10 @@ def test_ppo_sl(get_envs, model_class):
     # print(get_envs)
     env, envs = get_envs[0], get_envs[1]
     kwargs = dict(n_steps=50, batch_size=25, seed=1, device='cpu')
+    kwargs_sl = dict(n_steps=[50], batch_size=[25], seed=1, device='cpu')
 
     model = model_class("MlpPolicy", envs, **kwargs).learn(1000)
-    model_ppo_sl = PPO_SL("MlpPolicy", [envs], **kwargs).learn(1000)
+    model_ppo_sl = PPO_SL("MlpPolicy", [envs], **kwargs_sl).learn(1000)
 
     return_array, return_sl_array = [], []
     for i in range(10):
