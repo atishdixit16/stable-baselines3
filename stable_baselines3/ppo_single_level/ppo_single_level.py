@@ -242,11 +242,11 @@ class PPO_SL(OnPolicyAlgorithmSingleLevel):
 
         # train for n_epochs epochs
         for epoch in range(self.n_epochs):
-            batch_array = self.rollout_buffer_array[0].get_batches(self.batch_size_array[0])
+            # batch_array = self.rollout_buffer_array[0].get_batches(self.batch_size_array[0])
             approx_kl_divs = []
             # Do a complete pass on the rollout buffer
             # for rollout_data in self.rollout_buffer_array[0].get(self.batch_size_array[0]):
-            for rollout_data in batch_array:
+            for rollout_data in self.rollout_buffer_array[0].get(self.batch_size_array[0]):
                 policy_batch_loss, value_batch_loss, entropy_batch_loss, ratio = self.compute_batch_losses(rollout_data, clip_range, clip_range_vf)
        
                 # Losses 
