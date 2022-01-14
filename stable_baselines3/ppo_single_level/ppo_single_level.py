@@ -209,6 +209,15 @@ class PPO_SL(OnPolicyAlgorithmSingleLevel):
         return policy_batch_loss, value_batch_loss, entropy_batch_loss, ratio
 
 
+    def update_policy(self, loss) -> None:
+        # Optimization step
+        self.policy.optimizer.zero_grad()
+        loss.backward()
+        # Clip grad norm
+        th.nn.utils.clip_grad_norm_(self.policy.parameters(), self.max_grad_norm)
+        self.policy.optimizer.step()
+
+
     def train(self) -> None:
         """
         Update policy using the currently gathered rollout buffer.
@@ -270,12 +279,7 @@ class PPO_SL(OnPolicyAlgorithmSingleLevel):
                         print(f"Early stopping at step {epoch} due to reaching max kl: {approx_kl_div:.2f}")
                     break
 
-                # Optimization step
-                self.policy.optimizer.zero_grad()
-                loss.backward()
-                # Clip grad norm
-                th.nn.utils.clip_grad_norm_(self.policy.parameters(), self.max_grad_norm)
-                self.policy.optimizer.step()
+                self.update_policy(loss)
 
             if not continue_training:
                 break
