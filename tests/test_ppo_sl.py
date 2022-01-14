@@ -26,8 +26,8 @@ def test_ppo_sl(get_envs, model_class):
     kwargs = dict(n_steps=50, batch_size=100, seed=1, device='cpu')
     kwargs_sl = dict(n_steps=[50], batch_size=[100], seed=1, device='cpu')
 
-    model = model_class("MlpPolicy", envs, **kwargs).learn(50)
-    model_ppo_sl = PPO_SL("MlpPolicy", [envs], **kwargs_sl).learn(50)
+    model = model_class("MlpPolicy", envs, **kwargs).learn(400)
+    model_ppo_sl = PPO_SL("MlpPolicy", [envs], **kwargs_sl).learn(400)
 
     return_array, return_sl_array = [], []
     for i in range(10):
@@ -35,4 +35,5 @@ def test_ppo_sl(get_envs, model_class):
         return_array.append(evaluate_policy(model, Monitor(env) ))
         env.seed(i)
         return_sl_array.append(evaluate_policy(model_ppo_sl, Monitor(env) ))
-    assert np.array_equal(return_array, return_sl_array), print(return_array, return_sl_array)
+    print(return_array, '\n', return_sl_array)
+    assert np.array_equal(return_array, return_sl_array), print(return_array, '\n', return_sl_array)

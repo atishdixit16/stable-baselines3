@@ -163,6 +163,52 @@ class PPO_SL(OnPolicyAlgorithmSingleLevel):
 
             self.clip_range_vf = get_schedule_fn(self.clip_range_vf)
 
+    def compute_batch_losses(self, rollout_data, clip_range, clip_range_vf):
+        actions = rollout_data.actions
+        if isinstance(self.action_space, spaces.Discrete):
+            # Convert discrete action from float to long
+            actions = rollout_data.actions.long().flatten()
+
+        # Re-sample the noise matrix because the log_std has changed
+        if self.use_sde:
+            self.policy.reset_noise(self.batch_size_array[0])
+
+        values, log_prob, entropy = self.policy.evaluate_actions(rollout_data.observations, actions)
+        values = values.flatten()
+        # Normalize advantage
+        advantages = rollout_data.advantages
+        advantages = (advantages - advantages.mean()) / (advantages.std() + 1e-8)
+
+        # ratio between old and new policy, should be one at the first iteration
+        ratio = th.exp(log_prob - rollout_data.old_log_prob)
+
+        # clipped surrogate loss
+        policy_loss_1 = advantages * ratio
+        policy_loss_2 = advantages * th.clamp(ratio, 1 - clip_range, 1 + clip_range)
+        policy_batch_loss = -th.min(policy_loss_1, policy_loss_2)
+
+        if self.clip_range_vf is None:
+            # No clipping
+            values_pred = values
+        else:
+            # Clip the different between old and new value
+            # NOTE: this depends on the reward scaling
+            values_pred = rollout_data.old_values + th.clamp(
+                values - rollout_data.old_values, -clip_range_vf, clip_range_vf
+                )
+        # Value loss using the TD(gae_lambda) target
+        value_batch_loss = th.square(rollout_data.returns - values_pred)
+
+        # Entropy loss favor exploration
+        if entropy is None:
+            # Approximate entropy when no analytical form
+            entropy_batch_loss = -log_prob
+        else:
+            entropy_batch_loss = entropy
+
+        return policy_batch_loss, value_batch_loss, entropy_batch_loss, ratio
+
+
     def train(self) -> None:
         """
         Update policy using the currently gathered rollout buffer.
@@ -176,6 +222,8 @@ class PPO_SL(OnPolicyAlgorithmSingleLevel):
         # Optional: clip range for the value function
         if self.clip_range_vf is not None:
             clip_range_vf = self.clip_range_vf(self._current_progress_remaining)
+        else:
+            clip_range_vf = None
 
         entropy_losses = []
         pg_losses, value_losses = [], []
@@ -190,56 +238,21 @@ class PPO_SL(OnPolicyAlgorithmSingleLevel):
             # Do a complete pass on the rollout buffer
             # for rollout_data in self.rollout_buffer_array[0].get(self.batch_size_array[0]):
             for rollout_data in batch_array:
-                actions = rollout_data.actions
-                if isinstance(self.action_space, spaces.Discrete):
-                    # Convert discrete action from float to long
-                    actions = rollout_data.actions.long().flatten()
-
-                # Re-sample the noise matrix because the log_std has changed
-                if self.use_sde:
-                    self.policy.reset_noise(self.batch_size_array[0])
-
-                values, log_prob, entropy = self.policy.evaluate_actions(rollout_data.observations, actions)
-                values = values.flatten()
-                # Normalize advantage
-                advantages = rollout_data.advantages
-                advantages = (advantages - advantages.mean()) / (advantages.std() + 1e-8)
-
-                # ratio between old and new policy, should be one at the first iteration
-                ratio = th.exp(log_prob - rollout_data.old_log_prob)
-
-                # clipped surrogate loss
-                policy_loss_1 = advantages * ratio
-                policy_loss_2 = advantages * th.clamp(ratio, 1 - clip_range, 1 + clip_range)
-                policy_loss = -th.min(policy_loss_1, policy_loss_2).mean()
+                policy_batch_loss, value_batch_loss, entropy_batch_loss, ratio = self.compute_batch_losses(rollout_data, clip_range, clip_range_vf)
+       
+                # Losses 
+                policy_loss = th.mean(policy_batch_loss)
+                value_loss = th.mean(value_batch_loss)
+                entropy_loss = -th.mean(entropy_batch_loss)
 
                 # Logging
                 pg_losses.append(policy_loss.item())
-                clip_fraction = th.mean((th.abs(ratio - 1) > clip_range).float()).item()
-                clip_fractions.append(clip_fraction)
-
-                if self.clip_range_vf is None:
-                    # No clipping
-                    values_pred = values
-                else:
-                    # Clip the different between old and new value
-                    # NOTE: this depends on the reward scaling
-                    values_pred = rollout_data.old_values + th.clamp(
-                        values - rollout_data.old_values, -clip_range_vf, clip_range_vf
-                    )
-                # Value loss using the TD(gae_lambda) target
-                value_loss = F.mse_loss(rollout_data.returns, values_pred)
                 value_losses.append(value_loss.item())
-
-                # Entropy loss favor exploration
-                if entropy is None:
-                    # Approximate entropy when no analytical form
-                    entropy_loss = -th.mean(-log_prob)
-                else:
-                    entropy_loss = -th.mean(entropy)
-
                 entropy_losses.append(entropy_loss.item())
-
+                batch_clip_fraction = (th.abs(ratio - 1) > clip_range).float()
+                clip_fraction = th.mean(batch_clip_fraction).item()
+                clip_fractions.append(clip_fraction)
+    
                 loss = policy_loss + self.ent_coef * entropy_loss + self.vf_coef * value_loss
 
                 # Calculate approximate form of reverse KL Divergence for early stopping
@@ -247,8 +260,8 @@ class PPO_SL(OnPolicyAlgorithmSingleLevel):
                 # and discussion in PR #419: https://github.com/DLR-RM/stable-baselines3/pull/419
                 # and Schulman blog: http://joschu.net/blog/kl-approx.html
                 with th.no_grad():
-                    log_ratio = log_prob - rollout_data.old_log_prob
-                    approx_kl_div = th.mean((th.exp(log_ratio) - 1) - log_ratio).cpu().numpy()
+                    log_ratio = th.log(ratio)
+                    approx_kl_div = th.mean((ratio - 1) - log_ratio).cpu().numpy()
                     approx_kl_divs.append(approx_kl_div)
 
                 if self.target_kl is not None and approx_kl_div > 1.5 * self.target_kl:

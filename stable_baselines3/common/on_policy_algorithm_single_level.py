@@ -255,8 +255,6 @@ class OnPolicyAlgorithmSingleLevel(BaseAlgorithm):
 
         while self.num_timesteps < total_timesteps:
 
-            print(self.num_timesteps)
-
             continue_training = self.collect_rollouts(self.env_array[0], callback, self.rollout_buffer_array[0], n_rollout_steps=self.n_steps)
 
             if continue_training is False:
