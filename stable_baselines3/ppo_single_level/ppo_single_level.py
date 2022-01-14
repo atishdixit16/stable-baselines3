@@ -242,7 +242,6 @@ class PPO_SL(OnPolicyAlgorithmSingleLevel):
 
         # train for n_epochs epochs
         for epoch in range(self.n_epochs):
-            # batch_array = self.rollout_buffer_array[0].get_batches(self.batch_size_array[0])
             approx_kl_divs = []
             # Do a complete pass on the rollout buffer
             # for rollout_data in self.rollout_buffer_array[0].get(self.batch_size_array[0]):
