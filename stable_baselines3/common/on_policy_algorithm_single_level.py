@@ -7,6 +7,7 @@ import torch as th
 
 from stable_baselines3.common.base_class import BaseAlgorithm
 from stable_baselines3.common.buffers import DictRolloutBuffer, RolloutBuffer
+from stable_baselines3.common.buffer_single_level import RolloutBufferSingleLevel
 from stable_baselines3.common.callbacks import BaseCallback
 from stable_baselines3.common.policies import ActorCriticPolicy, BasePolicy
 from stable_baselines3.common.type_aliases import GymEnv, MaybeCallback, Schedule
@@ -113,7 +114,7 @@ class OnPolicyAlgorithmSingleLevel(BaseAlgorithm):
         self._setup_lr_schedule()
         self.set_random_seed(self.seed)
 
-        buffer_cls = DictRolloutBuffer if isinstance(self.observation_space, gym.spaces.Dict) else RolloutBuffer
+        buffer_cls = DictRolloutBuffer if isinstance(self.observation_space, gym.spaces.Dict) else RolloutBufferSingleLevel
 
         self.rollout_buffer_array.append ( buffer_cls(
             self.n_steps_array[0],
@@ -253,6 +254,8 @@ class OnPolicyAlgorithmSingleLevel(BaseAlgorithm):
         callback.on_training_start(locals(), globals())
 
         while self.num_timesteps < total_timesteps:
+
+            print(self.num_timesteps)
 
             continue_training = self.collect_rollouts(self.env_array[0], callback, self.rollout_buffer_array[0], n_rollout_steps=self.n_steps)
 

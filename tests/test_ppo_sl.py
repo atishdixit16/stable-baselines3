@@ -1,3 +1,4 @@
+from tabnanny import verbose
 import pytest
 import numpy as np
 import gym
@@ -22,11 +23,11 @@ def get_envs():
 def test_ppo_sl(get_envs, model_class):
     # print(get_envs)
     env, envs = get_envs[0], get_envs[1]
-    kwargs = dict(n_steps=50, batch_size=25, seed=1, device='cpu')
-    kwargs_sl = dict(n_steps=[50], batch_size=[25], seed=1, device='cpu')
+    kwargs = dict(n_steps=50, batch_size=100, seed=1, device='cpu')
+    kwargs_sl = dict(n_steps=[50], batch_size=[100], seed=1, device='cpu')
 
-    model = model_class("MlpPolicy", envs, **kwargs).learn(1000)
-    model_ppo_sl = PPO_SL("MlpPolicy", [envs], **kwargs_sl).learn(1000)
+    model = model_class("MlpPolicy", envs, **kwargs).learn(50)
+    model_ppo_sl = PPO_SL("MlpPolicy", [envs], **kwargs_sl).learn(50)
 
     return_array, return_sl_array = [], []
     for i in range(10):
@@ -34,5 +35,4 @@ def test_ppo_sl(get_envs, model_class):
         return_array.append(evaluate_policy(model, Monitor(env) ))
         env.seed(i)
         return_sl_array.append(evaluate_policy(model_ppo_sl, Monitor(env) ))
-    print(return_array, return_sl_array)
-    assert np.array_equal(return_array, return_sl_array)
+    assert np.array_equal(return_array, return_sl_array), print(return_array, return_sl_array)

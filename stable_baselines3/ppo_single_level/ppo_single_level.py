@@ -185,9 +185,11 @@ class PPO_SL(OnPolicyAlgorithmSingleLevel):
 
         # train for n_epochs epochs
         for epoch in range(self.n_epochs):
+            batch_array = self.rollout_buffer_array[0].get_batches(self.batch_size_array[0])
             approx_kl_divs = []
             # Do a complete pass on the rollout buffer
-            for rollout_data in self.rollout_buffer_array[0].get(self.batch_size_array[0]):
+            # for rollout_data in self.rollout_buffer_array[0].get(self.batch_size_array[0]):
+            for rollout_data in batch_array:
                 actions = rollout_data.actions
                 if isinstance(self.action_space, spaces.Discrete):
                     # Convert discrete action from float to long
@@ -295,7 +297,7 @@ class PPO_SL(OnPolicyAlgorithmSingleLevel):
         tb_log_name: str = "PPO",
         eval_log_path: Optional[str] = None,
         reset_num_timesteps: bool = True,
-    ) -> "PPO":
+    ) -> "PPO_SL":
 
         return super(PPO_SL, self).learn(
             total_timesteps=total_timesteps,
