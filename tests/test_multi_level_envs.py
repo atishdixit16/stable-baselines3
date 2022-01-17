@@ -9,7 +9,7 @@ def test_multi_level_env_params(dim):
     """
     check the mulilevel environment parameters
     """
-    level_dict = {1:0.25, 2:0.5, 3:0.75, 4:1}
+    level_dict = {1:[int(0.25*dim), int(0.25*dim*0.5)], 2:[int(0.5*dim), int(0.5*dim*0.5)], 3:[int(0.75*dim), int(0.75*dim*0.5)], 4:[int(1.0*dim), int(1.0*dim*0.5)]}
     grid = Grid(nx=dim, ny=int(dim*0.5), lx=1, ly=0.5)
     phi = np.ones(grid.shape)
     k = np.array([np.ones(grid.shape)])
@@ -23,7 +23,7 @@ def test_multi_level_env_params(dim):
     ressim_params = RessimParams(grid, k, phi, s_wir, s_oir, 
                                  mu_w, mu_o, mobility, 
                                  dt, nstep, terminal_step, 
-                                 q, s)
+                                 q, s, level_dict)
 
     ressim_env_params_generator = RessimEnvParamGenerator(ressim_params, level_dict)
 
@@ -32,7 +32,7 @@ def test_multi_level_env_params(dim):
         ressim_params_array.append(ressim_env_params_generator.get_level_env_params(level))
 
     for ressim_params_l in ressim_params_array:
-        assert ressim_params_l.k[0].shape == ressim_params_l.grid.shape
+        assert ressim_params_l.k_list[0].shape == ressim_params_l.grid.shape
         assert ressim_params_l.phi.shape == ressim_params_l.grid.shape
         assert ressim_params_l.q.shape == ressim_params_l.grid.shape
         assert ressim_params_l.s.shape == ressim_params_l.grid.shape

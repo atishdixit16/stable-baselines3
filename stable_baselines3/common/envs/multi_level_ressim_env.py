@@ -1,18 +1,25 @@
+from os import stat
 import numpy as np
+import gym
+import functools
 
 from numpy import sum, mean
 from scipy.stats import hmean
+from gym import spaces
+from gym.utils import seeding
 
-from stable_baselines3.common.envs.multi_level_model.level_mapping_functions import get_accmap, fine_to_coarse_mapping
+from stable_baselines3.common.envs.multi_level_model.ressim import SaturationEquation, PressureEquation
+from stable_baselines3.common.envs.multi_level_model.utils import linear_mobility, quadratic_mobility, lamb_fn, f_fn, df_fn
+from stable_baselines3.common.envs.multi_level_model.level_mapping_functions import coarse_to_fine_mapping, get_accmap, fine_to_coarse_mapping
 from stable_baselines3.common.envs.multi_level_model.ressim import Grid
-
 
 class RessimParams():
     def __init__(self,
                  grid: Grid , k: np.ndarray, phi: np.ndarray, s_wir: float, s_oir: float, # domain properties
                  mu_w: float, mu_o: float, mobility: str,                                 # fluid properties
                  dt: float, nstep: int, terminal_step: int,                               # timesteps
-                 q: np.ndarray, s: np.ndarray) -> None:                                   # initial conditions
+                 q: np.ndarray, s: np.ndarray,                                            # initial conditions
+                 level_dict: dict) -> None:
 
         """
         reservoir simulation parameters 
@@ -33,8 +40,11 @@ class RessimParams():
 
         """
 
+        assert k.ndim==3, 'Invalid value k. n permeabilities should be provided as a numpy array with shape (n,grid.nx, grid.ny)'
+        assert mobility in ['linear', 'quadratic'], 'invalid mobility parameter. should be one of these: linear, quadratic'
+
         self.grid = grid
-        self.k = k 
+        self.k_list = k 
         self.phi = phi
         self.s_wir = s_wir
         self.s_oir = s_oir
@@ -46,8 +56,56 @@ class RessimParams():
         self.terminal_step = terminal_step
         self.q = q
         self.s = s
+        self.level_dict = level_dict
 
+        # original oil in place
+        self.ooip = self.grid.lx * self.grid.ly * self.phi[0,0] * (1 - self.s_wir - self.s_oir)
 
+        self.define_accmap()
+        self.define_model_functions()
+
+    def define_model_functions(self):
+        # Model functions (mobility and fractional flow function)
+        if self.mobility=='linear':
+            self.mobi_fn = functools.partial(linear_mobility, mu_w=self.mu_w, mu_o=self.mu_o, s_wir=self.s_wir, s_oir=self.s_oir)  # quadratic mobility model
+        elif self.mobility=='quadratic':
+            self.mobi_fn = functools.partial(quadratic_mobility, mu_w=self.mu_w, mu_o=self.mu_o, s_wir=self.s_wir, s_oir=self.s_oir)  # quadratic mobility model
+        else:
+            raise Exception('invalid mobility input. should be one of these: linear or quadratic')
+        self.lamb_fn = functools.partial(lamb_fn, mobi_fn=self.mobi_fn)  # total mobility function
+        self.f_fn = functools.partial(f_fn, mobi_fn=self.mobi_fn)  # water fractional flow function
+        self.df_fn = functools.partial(df_fn, mobi_fn=self.mobi_fn)
+
+    def define_obs_act_spaces(self, q_fine) -> None:
+        self.q_fine = q_fine
+        # total flow across the field (c)
+        self.tol = 1e-5
+        self.c = np.sum(self.q[self.q>self.tol])                 
+            
+        # injectors
+        self.n_inj = q_fine[q_fine>self.tol].size                          
+        self.i_x, self.i_y = np.where(q_fine>self.tol)[0], np.where(q_fine>self.tol)[1]
+
+        # producers
+        self.n_prod = q_fine[q_fine<-self.tol].size
+        self.p_x, self.p_y =  np.where(q_fine<-self.tol)[0], np.where(q_fine<-self.tol)[1]
+
+        # action and observation spaces
+        self.observation_space = spaces.Box(low=np.array([-1]*(2*self.n_prod+self.n_inj), dtype=np.float64), 
+                                            high=np.array([1]*(2*self.n_prod+self.n_inj), dtype=np.float64), 
+                                            dtype=np.float64)
+        
+        self.action_space = spaces.Box(low=np.array([0.001]*(self.n_prod+self.n_inj), dtype=np.float64), 
+                                       high=np.array([1]*(self.n_prod+self.n_inj), dtype=np.float64), 
+                                       dtype=np.float64)
+
+    def define_accmap(self):
+        L = len(self.level_dict)
+        fine_grid = Grid(nx=self.level_dict[L][0],
+                         ny=self.level_dict[L][1],
+                         lx=self.grid.lx,
+                         ly=self.grid.ly)
+        self.accmap = get_accmap(fine_grid, self.grid)
 
 class RessimEnvParamGenerator():
     def __init__(self,
@@ -66,15 +124,15 @@ class RessimEnvParamGenerator():
         for i,l in enumerate(level_dict.keys()):
             assert i+1==l, 'level_dict keys should start from one to the lenth of the dictionary'
             if i>0:
-                assert level_dict[l] <= 1 and level_dict[l] > level_dict[l-1], 'level_dict values should reflect grid fidelity factors in ascending order such that the last value is one'
+                assert sum(level_dict[l]) > sum(level_dict[l-1]), 'level_dict values should reflect grid dimensions in ascending order such that the last value is one'
 
         self.ressim_params = ressim_params
         self.level_dict = level_dict
 
     def get_level_env_params(self, level: int):
         assert level in self.level_dict.keys(), 'invalid level value, should be among the level_dict keys'
-        coarse_grid = Grid(nx=int( self.level_dict[level]*self.ressim_params.grid.nx), 
-                           ny=int( self.level_dict[level]*self.ressim_params.grid.ny),
+        coarse_grid = Grid(nx=self.level_dict[level][0], 
+                           ny=self.level_dict[level][1],
                            lx=self.ressim_params.grid.lx,
                            ly=self.ressim_params.grid.ly)
         accmap = get_accmap(self.ressim_params.grid, coarse_grid)
@@ -82,7 +140,7 @@ class RessimEnvParamGenerator():
         coarse_q = fine_to_coarse_mapping(self.ressim_params.q, accmap, func=sum)
         coarse_s = fine_to_coarse_mapping(self.ressim_params.s, accmap, func=mean)
         coarse_k = []
-        for k in self.ressim_params.k:
+        for k in self.ressim_params.k_list:
             coarse_k.append(fine_to_coarse_mapping(k, accmap, func=hmean))
         coarse_k = np.array(coarse_k)
 
@@ -98,10 +156,158 @@ class RessimEnvParamGenerator():
                                self.ressim_params.nstep, 
                                self.ressim_params.terminal_step, 
                                coarse_q, 
-                               coarse_s))
+                               coarse_s,
+                               self.level_dict))
 
-        return RessimParams(*coarse_params)
+        ressim_params_coarse = RessimParams(*coarse_params)
+        ressim_params_coarse.define_obs_act_spaces(self.ressim_params.q)
 
+        return ressim_params_coarse
+
+
+class MultiLevelRessimEnv(gym.Env):
+    def __init__(self,
+                 ressim_params: RessimParams,
+                 level: int) -> None:
         
+        assert level in ressim_params.level_dict.keys(), 'invalid level value, should be among the level_dict keys'
+
+        self.ressim_params = ressim_params
+        self.level = level
+        
+        # RL parameters ( accordind to instructions on: https://github.com/openai/gym/blob/master/gym/core.py )
+        self.metadata = {'render.modes': []} 
+        self.reward_range = (0.0, 1.0)
+        self.spec = None
+
+        # define observation and action spaces
+        self.observation_space = self.ressim_params.observation_space
+        self.action_space = self.ressim_params.action_space
+
+        # for reproducibility
+        self.seed()
+
+    def seed(self, seed=None):
+        self.np_random, seed = seeding.np_random(seed)
+        return [seed]
+
+    def phi_a(self, action):
+        
+        # convert input array into producer/injector 
+        inj_flow = action[:self.ressim_params.n_inj] / np.sum(action[:self.ressim_params.n_inj])
+        inj_flow = self.ressim_params.c * inj_flow
+        prod_flow = action[self.ressim_params.n_inj:] / np.sum(action[self.ressim_params.n_inj:])
+        prod_flow = -self.ressim_params.c * prod_flow
+        
+        # add producer/injector flow values
+        q = np.zeros(self.ressim_params.q_fine.shape)
+        q[self.ressim_params.i_x, self.ressim_params.i_y] = inj_flow
+        q[self.ressim_params.p_x, self.ressim_params.p_y] = prod_flow
+
+        # adjust unbalanced source term in arbitary location in the field due to precision error 
+        if np.abs(np.sum(q)) < self.ressim_params.tol:
+            q[3,3] = q[3,3] - np.sum(q) 
+
+        return q
+
+    def Phi_a(self, q) -> None:
+        self.q_load = fine_to_coarse_mapping(q, self.ressim_params.accmap)
+        
+    def Phi_s(self) -> None:
+        s_fine = coarse_to_fine_mapping(self.s_load, self.ressim_params.accmap)
+        p_fine = coarse_to_fine_mapping(self.p_load, self.ressim_params.accmap)
+        return s_fine, p_fine
+
+    def phi_s(self, s_fine, p_fine):
+        obs_sat = s_fine[self.ressim_params.p_x, self.ressim_params.p_y]
+
+        # scale pressure into the range [-1,1]
+        fine_p_scaled = np.interp(p_fine, (p_fine.min(), p_fine.max()), (-1,1))
+        obs_pr_p = fine_p_scaled[self.ressim_params.p_x, self.ressim_params.p_y]
+        obs_pr_i = fine_p_scaled[self.ressim_params.i_x, self.ressim_params.i_y]
+
+        self.obs = np.hstack((obs_sat, obs_pr_p, obs_pr_i))
+
+    def simulation_step(self):
+        # solve pressure
+        self.solverP = PressureEquation(self.ressim_params.grid, q=self.q_load, k=self.k_load, lamb_fn=self.ressim_params.lamb_fn)
+        self.solverS = SaturationEquation(self.ressim_params.grid, q=self.q_load, phi=self.ressim_params.phi, s=self.s_load, f_fn=self.ressim_params.f_fn, df_fn=self.ressim_params.df_fn)
+
+        # solve pressure equation
+        oil_pr = 0.0
+        self.solverP.s = self.solverS.s
+        self.solverP.step()
+        self.solverS.v = self.solverP.v
+        for _ in range(self.ressim_params.nstep):
+            # solve saturation equation
+            self.solverS.step(self.ressim_params.dt)
+            oil_pr = oil_pr + -np.sum( self.q_load[self.q_load<0] * ( 1- self.f_fn(self.solverS.s[self.q_load<0]) ) )*self.dt
+
+        # state
+        self.s_load = self.solverS.s
+        self.p_load = self.solverP.p
+        state = [self.s_load, self.p_load]
+
+        #reward
+        reward = oil_pr / self.ressim_params.ooip # recovery rate
+
+        # done
+        self.episode_step += 1
+        if self.episode_step >= self.ressim_params.terminal_step:
+            done=True
+        else:
+            done=False
+
+        return state, reward, done, {}
+
+    def step(self, action):
+        q_fine = self.phi_a(action)
+        self.Phi_a(q_fine)
+        _, reward, done, info = self.simulation_step()
+        s_fine, p_fine = self.Phi_s()
+        self.phi_s(s_fine, p_fine)
+        return self.obs, reward, done, info
+
+    def reset(self):
+
+        self.q_load = self.ressim_params.q
+        self.p_load = np.zeros(self.ressim_params.grid.shape)
+
+        # initialize dynamic parameters
+        s = self.ressim_params.s
+        k_index = self.np_random.choice(self.ressim_params.k_list.shape[0])
+        e = 0
+        self.set_dynamic_parameters(s,k_index,e)
+
+        s_fine, p_fine = self.Phi_s()
+        self.phi_s(s_fine, p_fine)
+
+        return self.obs
+
+    def set_dynamic_parameters(self, s, k_index, e):
+        # dynamic parameters
+        self.s_load = s
+        self.k_index = k_index
+        self.k_load = self.ressim_params.k_list[self.k_index]
+        self.episode_step = e
+
+    def map_from(self, env):
+        grid_from, level_from = env.ressim_params.grid, env.level
+        grid_to, level_to = self.ressim_params.grid, self.level
+        
+        if level_from > level_to:
+            # fine to coarse mapping
+            accmap = get_accmap(grid_from, grid_to)
+            s = fine_to_coarse_mapping(env.s_load, accmap, func=mean)
+            k_index = env.k_index
+            e = env.episode_step
+            self.set_dynamic_parameters(s,k_index,e)
+        else:
+            # coarse to fine mapping
+            accmap = get_accmap(grid_to, grid_from)
+            s = coarse_to_fine_mapping(env.s_load, accmap)
+            k_index = env.k_index
+            e = env.episode_step
+            self.set_dynamic_parameters(s,k_index,e)
 
         
