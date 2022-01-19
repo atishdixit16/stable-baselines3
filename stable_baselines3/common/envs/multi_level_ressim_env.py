@@ -109,8 +109,7 @@ class RessimParams():
 
 class RessimEnvParamGenerator():
     def __init__(self,
-                 ressim_params: RessimParams,
-                 level_dict: dict) -> None:
+                 ressim_params: RessimParams) -> None:
 
         """
         a parameter generator for the MultiLevelRessimEnv environment
@@ -121,18 +120,17 @@ class RessimEnvParamGenerator():
         """
 
         # check the level_dict input
-        for i,l in enumerate(level_dict.keys()):
+        for i,l in enumerate(ressim_params.level_dict.keys()):
             assert i+1==l, 'level_dict keys should start from one to the lenth of the dictionary'
             if i>0:
-                assert sum(level_dict[l]) > sum(level_dict[l-1]), 'level_dict values should reflect grid dimensions in ascending order such that the last value is one'
+                assert sum(ressim_params.level_dict[l]) > sum(ressim_params.level_dict[l-1]), 'level_dict values should reflect grid dimensions in ascending order such that the last value is one'
 
         self.ressim_params = ressim_params
-        self.level_dict = level_dict
 
     def get_level_env_params(self, level: int):
-        assert level in self.level_dict.keys(), 'invalid level value, should be among the level_dict keys'
-        coarse_grid = Grid(nx=self.level_dict[level][0], 
-                           ny=self.level_dict[level][1],
+        assert level in self.ressim_params.level_dict.keys(), 'invalid level value, should be among the level_dict keys'
+        coarse_grid = Grid(nx=self.ressim_params.level_dict[level][0], 
+                           ny=self.ressim_params.level_dict[level][1],
                            lx=self.ressim_params.grid.lx,
                            ly=self.ressim_params.grid.ly)
         accmap = get_accmap(self.ressim_params.grid, coarse_grid)
@@ -157,7 +155,7 @@ class RessimEnvParamGenerator():
                                self.ressim_params.terminal_step, 
                                coarse_q, 
                                coarse_s,
-                               self.level_dict))
+                               self.ressim_params.level_dict))
 
         ressim_params_coarse = RessimParams(*coarse_params)
         ressim_params_coarse.define_obs_act_spaces(self.ressim_params.q)
@@ -211,7 +209,7 @@ class MultiLevelRessimEnv(gym.Env):
         return q
 
     def Phi_a(self, q) -> None:
-        self.q_load = fine_to_coarse_mapping(q, self.ressim_params.accmap)
+        self.q_load = fine_to_coarse_mapping(q, self.ressim_params.accmap, func=sum)
         
     def Phi_s(self) -> None:
         s_fine = coarse_to_fine_mapping(self.s_load, self.ressim_params.accmap)
@@ -241,7 +239,7 @@ class MultiLevelRessimEnv(gym.Env):
         for _ in range(self.ressim_params.nstep):
             # solve saturation equation
             self.solverS.step(self.ressim_params.dt)
-            oil_pr = oil_pr + -np.sum( self.q_load[self.q_load<0] * ( 1- self.f_fn(self.solverS.s[self.q_load<0]) ) )*self.dt
+            oil_pr = oil_pr + -np.sum( self.q_load[self.q_load<0] * ( 1- self.ressim_params.f_fn(self.solverS.s[self.q_load<0]) ) )*self.ressim_params.dt
 
         # state
         self.s_load = self.solverS.s
