@@ -1,3 +1,4 @@
+from argparse import Action
 import numpy as np
 import pytest
 
@@ -122,7 +123,10 @@ def generate_env_case_2_params():
                                                 (generate_env_case_2_params, 1),
                                                 (generate_env_case_2_params, 2),
                                                 (generate_env_case_2_params, 3)])
-def test_fine_grid_envs(params_func, level):
+def test_multiple_grid_envs(params_func, level):
+    """
+    test transitions of environment at multiple levels
+    """
     params_input = params_func()
     params_generator = RessimEnvParamGenerator(params_input)
     params = params_generator.get_level_env_params(level)
@@ -130,8 +134,53 @@ def test_fine_grid_envs(params_func, level):
 
     for _ in range(100):
         _, done = env.reset(), False
-        assert env.k_load.shape == env.ressim_params.grid.shape
-        assert env.q_load.shape == env.ressim_params.grid.shape
-        assert env.s_load.shape == env.ressim_params.grid.shape
         while not done:
+            assert env.k_load.shape == (env.ressim_params.level_dict[level][1], env.ressim_params.level_dict[level][0])
+            assert env.q_load.shape == (env.ressim_params.level_dict[level][1], env.ressim_params.level_dict[level][0])
+            assert env.s_load.shape == (env.ressim_params.level_dict[level][1], env.ressim_params.level_dict[level][0])
             _, _, done, _ = env.step(env.action_space.sample())
+
+
+@pytest.mark.parametrize("params_func", [generate_env_case_1_params,generate_env_case_2_params])
+def test_multi_level_env_mapping(params_func):
+    """
+    test mapping of environement from different levels during the transitions
+    """
+    params_input = params_func()
+    params_generator = RessimEnvParamGenerator(params_input)
+
+    env_dict = {}
+    for level in params_input.level_dict.keys():
+        params = params_generator.get_level_env_params(level)
+        env_dict[level] = MultiLevelRessimEnv(params, level)
+
+    level = 1
+    bump = +1
+    L = len( params_input.level_dict )
+
+    for level in params_input.level_dict.keys():
+        _ = env_dict[level].reset()
+        _ = env_dict[level].reset()
+
+    for _ in range(100):
+
+        if (level==1 and bump==-1) or (level==L and bump==1):
+            bump = -bump
+
+        env_dict[level+bump].map_from(env_dict[level])
+
+        action = env_dict[level].action_space.sample() 
+        _, r, done, _ = env_dict[level].step(action)
+        _, r_, _, _ = env_dict[level+bump].step(action)
+
+        print(f'({env_dict[level].s_load.shape} -> {env_dict[level+bump].s_load.shape})')
+        print(f'level({level} -> {level+bump}): reward ({ round(r*100, 2) } -> { round(r_*100, 2) })') 
+
+        if done:
+            print('\nreset')
+            _ = env_dict[level].reset()
+            _ = env_dict[level+bump].reset()
+
+        level = level + bump
+
+
