@@ -66,3 +66,5 @@ def batch_generate_krige(nx, ny, lx, ly,
     ks = np.array(ks)
     
     return ks
+
+    
