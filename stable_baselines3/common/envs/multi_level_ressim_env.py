@@ -109,7 +109,7 @@ class RessimParams():
 
     def set_k(self, k):
         assert k.ndim==3, 'Invalid value k. n permeabilities should be provided as a numpy array with shape (n,grid.nx, grid.ny)'
-        self.ressim_params.k_list = k
+        self.k_list = k
 
 class RessimEnvParamGenerator():
     def __init__(self,
