@@ -312,4 +312,7 @@ class MultiLevelRessimEnv(gym.Env):
             e = env.episode_step
             self.set_dynamic_parameters(s,k_index,e)
 
+    def set_k(self, k):
+        self.ressim_params.set_k(k)
+
 
