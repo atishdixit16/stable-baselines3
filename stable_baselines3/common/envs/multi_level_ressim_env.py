@@ -314,5 +314,3 @@ class MultiLevelRessimEnv(gym.Env):
 
     def set_k(self, k):
         self.ressim_params.set_k(k)
-
-
