@@ -84,7 +84,14 @@ def test_multi_level_env_mapping(params_func):
         _ = env_dict[level].reset()
         _ = env_dict[level].reset()
 
-    for _ in range(100):
+    done=False
+
+    for _ in range(10):
+        
+        if done:
+            print('\nreset')
+            _ = env_dict[level].reset()
+            # _ = env_dict[level+bump].reset()
 
         if (level==1 and bump==-1) or (level==L and bump==1):
             bump = -bump
@@ -97,11 +104,6 @@ def test_multi_level_env_mapping(params_func):
 
         print(f'({env_dict[level].s_load.shape} -> {env_dict[level+bump].s_load.shape})')
         print(f'level({level} -> {level+bump}): reward ({ round(r*100, 2) } -> { round(r_*100, 2) })') 
-
-        if done:
-            print('\nreset')
-            _ = env_dict[level].reset()
-            _ = env_dict[level+bump].reset()
 
         level = level + bump
 
