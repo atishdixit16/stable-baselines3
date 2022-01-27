@@ -98,6 +98,10 @@ def test_multi_level_env_mapping(params_func):
 
         env_dict[level+bump].map_from(env_dict[level])
 
+        assert env_dict[level].episode_step == env_dict[level+bump].episode_step
+        assert env_dict[level].s_load.shape == (params_input.level_dict[level][1],params_input.level_dict[level][0])
+        assert env_dict[level+bump].s_load.shape == (params_input.level_dict[level+bump][1],params_input.level_dict[level+bump][0])
+
         action = env_dict[level].action_space.sample() 
         _, r, done, _ = env_dict[level].step(action)
         _, r_, _, _ = env_dict[level+bump].step(action)
