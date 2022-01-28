@@ -67,10 +67,10 @@ class PPO_SL(OnPolicyAlgorithmSingleLevel):
     def __init__(
         self,
         policy: Union[str, Type[ActorCriticPolicy]],
-        env: 'list[Union[GymEnv, str]]',
+        env: 'dict[int: Union[GymEnv, str]]',
         learning_rate: Union[float, Schedule] = 3e-4,
-        n_steps: 'list[int]' = [2048],
-        batch_size: 'list[int]' = [64],
+        n_steps: 'dict[int: int]' = {1:2048},
+        batch_size: 'dict[int: int]' = {1:64},
         n_epochs: int = 10,
         gamma: float = 0.99,
         gae_lambda: float = 0.95,
@@ -121,7 +121,7 @@ class PPO_SL(OnPolicyAlgorithmSingleLevel):
         # Sanity check, otherwise it will lead to noisy gradient and NaN
         # because of the advantage normalization
         assert (
-            batch_size[0] > 1
+            batch_size[len(batch_size)] > 1
         ), "`batch_size` must be greater than 1. See https://github.com/DLR-RM/stable-baselines3/issues/440"
 
         if self.env is not None:
@@ -132,18 +132,18 @@ class PPO_SL(OnPolicyAlgorithmSingleLevel):
                 buffer_size > 1
             ), f"`n_steps * n_envs` must be greater than 1. Currently n_steps={self.n_steps} and n_envs={self.env.num_envs}"
             # Check that the rollout buffer size is a multiple of the mini-batch size
-            untruncated_batches = buffer_size // batch_size[0]
-            if buffer_size % batch_size[0] > 0:
+            untruncated_batches = buffer_size // batch_size[len(batch_size)]
+            if buffer_size % batch_size[len(batch_size)] > 0:
                 warnings.warn(
-                    f"You have specified a mini-batch size of {batch_size[0]},"
+                    f"You have specified a mini-batch size of {batch_size[len(batch_size)]},"
                     f" but because the `RolloutBuffer` is of size `n_steps * n_envs = {buffer_size}`,"
                     f" after every {untruncated_batches} untruncated mini-batches,"
                     f" there will be a truncated mini-batch of size {buffer_size % batch_size[0]}\n"
                     f"We recommend using a `batch_size` that is a factor of `n_steps * n_envs`.\n"
                     f"Info: (n_steps={self.n_steps} and n_envs={self.env.num_envs})"
                 )
-        self.batch_size = batch_size[0]
-        self.batch_size_array = batch_size
+        self.batch_size = batch_size[len(batch_size)]
+        self.batch_size_dict = batch_size
         self.n_epochs = n_epochs
         self.clip_range = clip_range
         self.clip_range_vf = clip_range_vf
@@ -245,7 +245,7 @@ class PPO_SL(OnPolicyAlgorithmSingleLevel):
             approx_kl_divs = []
             # Do a complete pass on the rollout buffer
             # for rollout_data in self.rollout_buffer_array[0].get(self.batch_size_array[0]):
-            for rollout_data in self.rollout_buffer_array[0].get(self.batch_size_array[0]):
+            for rollout_data in self.rollout_buffer_dict[1].get(self.batch_size_dict[1]):
                 policy_batch_loss, value_batch_loss, entropy_batch_loss, ratio = self.compute_batch_losses(rollout_data, clip_range, clip_range_vf)
        
                 # Losses 
@@ -284,7 +284,7 @@ class PPO_SL(OnPolicyAlgorithmSingleLevel):
                 break
 
         self._n_updates += self.n_epochs
-        explained_var = explained_variance(self.rollout_buffer_array[0].values.flatten(), self.rollout_buffer_array[0].returns.flatten())
+        explained_var = explained_variance(self.rollout_buffer_dict[1].values.flatten(), self.rollout_buffer_dict[1].returns.flatten())
 
         # Logs
         self.logger.record("train/entropy_loss", np.mean(entropy_losses))
