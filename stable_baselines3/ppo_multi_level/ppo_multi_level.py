@@ -12,7 +12,7 @@ from stable_baselines3.common.type_aliases import GymEnv, MaybeCallback, Schedul
 from stable_baselines3.common.utils import explained_variance, get_schedule_fn
 
 
-class PPO_SL(OnPolicyAlgorithmSingleLevel):
+class PPO_ML(OnPolicyAlgorithmSingleLevel):
     """
     Proximal Policy Optimization algorithm (PPO) (clip version)
 
@@ -91,7 +91,7 @@ class PPO_SL(OnPolicyAlgorithmSingleLevel):
         _init_setup_model: bool = True,
     ):
 
-        super(PPO_SL, self).__init__(
+        super(PPO_ML, self).__init__(
             policy,
             env,
             learning_rate=learning_rate,
@@ -153,7 +153,7 @@ class PPO_SL(OnPolicyAlgorithmSingleLevel):
             self._setup_model()
 
     def _setup_model(self) -> None:
-        super(PPO_SL, self)._setup_model()
+        super(PPO_ML, self)._setup_model()
 
         # Initialize schedules for policy/value clipping
         self.clip_range = get_schedule_fn(self.clip_range)
@@ -313,9 +313,9 @@ class PPO_SL(OnPolicyAlgorithmSingleLevel):
         tb_log_name: str = "PPO",
         eval_log_path: Optional[str] = None,
         reset_num_timesteps: bool = True,
-    ) -> "PPO_SL":
+    ) -> "PPO_ML":
 
-        return super(PPO_SL, self).learn(
+        return super(PPO_ML, self).learn(
             total_timesteps=total_timesteps,
             callback=callback,
             log_interval=log_interval,

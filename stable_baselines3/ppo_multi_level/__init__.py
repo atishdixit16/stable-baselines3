@@ -1,2 +1,2 @@
-from stable_baselines3.ppo_single_level.policies import CnnPolicy, MlpPolicy, MultiInputPolicy
-from stable_baselines3.ppo_single_level.ppo_single_level import PPO_SL
+from stable_baselines3.ppo_multi_level.policies import CnnPolicy, MlpPolicy, MultiInputPolicy
+from stable_baselines3.ppo_multi_level.ppo_multi_level import PPO_ML
