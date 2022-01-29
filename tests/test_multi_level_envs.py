@@ -112,3 +112,35 @@ def test_multi_level_env_mapping(params_func):
         level = level + bump
 
 
+@pytest.mark.parametrize("params_func, level", [(generate_env_case_1_params, 1),
+                                                (generate_env_case_1_params, 2),
+                                                (generate_env_case_1_params, 3),
+                                                (generate_env_case_1_params, 4),
+                                                (generate_env_case_2_params, 1),
+                                                (generate_env_case_2_params, 2),
+                                                (generate_env_case_2_params, 3)])
+def test_phi_a_inverse_function(params_func, level):
+    """
+    test transitions of environment at multiple levels
+    """
+    params_input = params_func()
+    params_generator = RessimEnvParamGenerator(params_input)
+    params = params_generator.get_level_env_params(level)
+    env = MultiLevelRessimEnv(params, level)
+
+    for _ in range(1):
+        _, done = env.reset(), False
+        while not done:
+            assert env.k_load.shape == (env.ressim_params.level_dict[level][1], env.ressim_params.level_dict[level][0])
+            assert env.q_load.shape == (env.ressim_params.level_dict[level][1], env.ressim_params.level_dict[level][0])
+            assert env.s_load.shape == (env.ressim_params.level_dict[level][1], env.ressim_params.level_dict[level][0])
+            action = env.action_space.sample()
+            action[:env.ressim_params.n_inj] = action[:env.ressim_params.n_inj] / np.sum( action[:env.ressim_params.n_inj] ) 
+            action[env.ressim_params.n_inj:] = action[env.ressim_params.n_inj:] / np.sum( action[env.ressim_params.n_inj:] ) 
+            q_L = env.phi_a(action)
+            action_ = env.phi_a_inverse(q_L)
+
+            assert np.abs(action-action_).max() < 1e-10, np.abs(action-action_) 
+
+            _, _, done, _ = env.step(action)
+

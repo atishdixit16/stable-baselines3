@@ -212,6 +212,13 @@ class MultiLevelRessimEnv(gym.Env):
 
         return q
 
+    def phi_a_inverse(self, q):
+        inj_flow = q[self.ressim_params.i_x, self.ressim_params.i_y]
+        inj_flow = inj_flow/np.sum(inj_flow)
+        prod_flow = q[self.ressim_params.p_x, self.ressim_params.p_y]
+        prod_flow = prod_flow/np.sum(prod_flow)
+        return np.hstack((np.abs(inj_flow), np.abs(prod_flow)))
+
     def Phi_a(self, q) -> None:
         self.q_load = fine_to_coarse_mapping(q, self.ressim_params.accmap, func=sum)
         
