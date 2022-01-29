@@ -78,7 +78,7 @@ class OnPolicyAlgorithmMultiLevel(BaseAlgorithm):
 
         super(OnPolicyAlgorithmMultiLevel, self).__init__(
             policy=policy,
-            env=env[len(env)],
+            env=env[1],
             policy_base=policy_base,
             learning_rate=learning_rate,
             policy_kwargs=policy_kwargs,
@@ -145,7 +145,7 @@ class OnPolicyAlgorithmMultiLevel(BaseAlgorithm):
         rollout_buffer_dict: 'dict[int: RolloutBuffer]',
         sync_rollout_buffer_dict: 'dict[int: RolloutBuffer]',
         n_rollout_steps: 'dict[int: int]',
-    ) -> bool:
+        ) -> bool:
         """
         Collect experiences using the current policy and fill a ``RolloutBuffer``.
         The term rollout here refers to the model-free notion and should not
@@ -166,70 +166,74 @@ class OnPolicyAlgorithmMultiLevel(BaseAlgorithm):
         for rollout_buffer, sync_rollout_buffer in zip(rollout_buffer_dict.values(), sync_rollout_buffer_dict.values()):
             rollout_buffer.reset()
             sync_rollout_buffer.reset()
+
+        for level in np.sort(env_dict.keys()):
             
-        n_steps = 0
-        # Sample new weights for the state dependent exploration
-        if self.use_sde:
-            self.policy.reset_noise(env.num_envs)
+            n_steps = 0
 
-        callback.on_rollout_start()
+            # Sample new weights for the state dependent exploration
+            if self.use_sde:
+                self.policy.reset_noise(env_dict[level].num_envs)
 
-        while n_steps < n_rollout_steps:
-            if self.use_sde and self.sde_sample_freq > 0 and n_steps % self.sde_sample_freq == 0:
-                # Sample a new noise matrix
-                self.policy.reset_noise(env.num_envs)
+            callback.on_rollout_start()
+
+            while n_steps < n_rollout_steps[level]:
+                if self.use_sde and self.sde_sample_freq > 0 and n_steps % self.sde_sample_freq == 0:
+                    # Sample a new noise matrix
+                    self.policy.reset_noise(env_dict[level].num_envs)
+
+                with th.no_grad():
+                    # Convert to pytorch tensor or to TensorDict
+                    obs_tensor = obs_as_tensor(self._last_obs, self.device)
+                    actions, values, log_probs = self.policy.forward(obs_tensor)
+                actions = actions.cpu().numpy()
+
+                # Rescale and perform action
+                clipped_actions = actions
+                # Clip the actions to avoid out of bound error
+                if isinstance(self.action_space, gym.spaces.Box):
+                    clipped_actions = np.clip(actions, self.action_space.low, self.action_space.high)
+
+                new_obs, rewards, dones, infos = env_dict[level].step(clipped_actions)
+
+                self.num_timesteps += env_dict[level].num_envs
+
+                # Give access to local variables
+                callback.update_locals(locals())
+                if callback.on_step() is False:
+                    return False
+
+                self._update_info_buffer(infos)
+                n_steps += 1
+
+                if isinstance(self.action_space, gym.spaces.Discrete):
+                    # Reshape in case of discrete action
+                    actions = actions.reshape(-1, 1)
+
+                # Handle timeout by bootstraping with value function
+                # see GitHub issue #633
+                for idx, done in enumerate(dones):
+                    if (
+                        done
+                        and infos[idx].get("terminal_observation") is not None
+                        and infos[idx].get("TimeLimit.truncated", False)
+                    ):
+                        terminal_obs = self.policy.obs_to_tensor(infos[idx]["terminal_observation"])[0]
+                        with th.no_grad():
+                            terminal_value = self.policy.predict_values(terminal_obs)[0]
+                        rewards[idx] += self.gamma * terminal_value
+
+                rollout_buffer_dict[level].add(self._last_obs, actions, rewards, self._last_episode_starts, values, log_probs)
+                self._last_obs = new_obs
+                self._last_episode_starts = dones
 
             with th.no_grad():
-                # Convert to pytorch tensor or to TensorDict
-                obs_tensor = obs_as_tensor(self._last_obs, self.device)
-                actions, values, log_probs = self.policy.forward(obs_tensor)
-            actions = actions.cpu().numpy()
+                # Compute value for the last timestep
+                values = self.policy.predict_values(obs_as_tensor(new_obs, self.device))
 
-            # Rescale and perform action
-            clipped_actions = actions
-            # Clip the actions to avoid out of bound error
-            if isinstance(self.action_space, gym.spaces.Box):
-                clipped_actions = np.clip(actions, self.action_space.low, self.action_space.high)
+            rollout_buffer_dict[level].compute_returns_and_advantage(last_values=values, dones=dones)
 
-            new_obs, rewards, dones, infos = env.step(clipped_actions)
-
-            self.num_timesteps += env.num_envs
-
-            # Give access to local variables
-            callback.update_locals(locals())
-            if callback.on_step() is False:
-                return False
-
-            self._update_info_buffer(infos)
-            n_steps += 1
-
-            if isinstance(self.action_space, gym.spaces.Discrete):
-                # Reshape in case of discrete action
-                actions = actions.reshape(-1, 1)
-
-            # Handle timeout by bootstraping with value function
-            # see GitHub issue #633
-            for idx, done in enumerate(dones):
-                if (
-                    done
-                    and infos[idx].get("terminal_observation") is not None
-                    and infos[idx].get("TimeLimit.truncated", False)
-                ):
-                    terminal_obs = self.policy.obs_to_tensor(infos[idx]["terminal_observation"])[0]
-                    with th.no_grad():
-                        terminal_value = self.policy.predict_values(terminal_obs)[0]
-                    rewards[idx] += self.gamma * terminal_value
-
-            rollout_buffer.add(self._last_obs, actions, rewards, self._last_episode_starts, values, log_probs)
-            self._last_obs = new_obs
-            self._last_episode_starts = dones
-
-        with th.no_grad():
-            # Compute value for the last timestep
-            values = self.policy.predict_values(obs_as_tensor(new_obs, self.device))
-
-        rollout_buffer.compute_returns_and_advantage(last_values=values, dones=dones)
-
+        
         callback.on_rollout_end()
 
         return True
