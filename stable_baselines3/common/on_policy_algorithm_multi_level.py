@@ -93,12 +93,8 @@ class OnPolicyAlgorithmMultiLevel(BaseAlgorithm):
             supported_action_spaces=supported_action_spaces,
         )
 
-        assert len(env)==1, 'environment dictionary should contain only one element'
         self.env_dict = env
-
-        assert len(n_steps)==len(env), 'n_step dictionary should be of same length as that of env dictionary'
         self.n_steps_dict = n_steps
-        self.n_steps = self.n_steps_dict[1]
 
         self.gamma = gamma
         self.gae_lambda = gae_lambda

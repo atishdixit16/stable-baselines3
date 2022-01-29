@@ -6,13 +6,13 @@ import torch as th
 from gym import spaces
 from torch.nn import functional as F
 
-from stable_baselines3.common.on_policy_algorithm_single_level import OnPolicyAlgorithmSingleLevel
+from stable_baselines3.common.on_policy_algorithm_multi_level import OnPolicyAlgorithmMultiLevel
 from stable_baselines3.common.policies import ActorCriticPolicy
 from stable_baselines3.common.type_aliases import GymEnv, MaybeCallback, Schedule
 from stable_baselines3.common.utils import explained_variance, get_schedule_fn
 
 
-class PPO_ML(OnPolicyAlgorithmSingleLevel):
+class PPO_ML(OnPolicyAlgorithmMultiLevel):
     """
     Proximal Policy Optimization algorithm (PPO) (clip version)
 
@@ -118,32 +118,35 @@ class PPO_ML(OnPolicyAlgorithmSingleLevel):
             ),
         )
 
+        # check multi-level variables
+        self._check_multi_level_variables()
         # Sanity check, otherwise it will lead to noisy gradient and NaN
         # because of the advantage normalization
-        assert (
-            batch_size[len(batch_size)] > 1
-        ), "`batch_size` must be greater than 1. See https://github.com/DLR-RM/stable-baselines3/issues/440"
-
-        if self.env is not None:
-            # Check that `n_steps * n_envs > 1` to avoid NaN
-            # when doing advantage normalization
-            buffer_size = self.env.num_envs * self.n_steps
-            assert (
-                buffer_size > 1
-            ), f"`n_steps * n_envs` must be greater than 1. Currently n_steps={self.n_steps} and n_envs={self.env.num_envs}"
-            # Check that the rollout buffer size is a multiple of the mini-batch size
-            untruncated_batches = buffer_size // batch_size[len(batch_size)]
-            if buffer_size % batch_size[len(batch_size)] > 0:
-                warnings.warn(
-                    f"You have specified a mini-batch size of {batch_size[len(batch_size)]},"
-                    f" but because the `RolloutBuffer` is of size `n_steps * n_envs = {buffer_size}`,"
-                    f" after every {untruncated_batches} untruncated mini-batches,"
-                    f" there will be a truncated mini-batch of size {buffer_size % batch_size[0]}\n"
-                    f"We recommend using a `batch_size` that is a factor of `n_steps * n_envs`.\n"
-                    f"Info: (n_steps={self.n_steps} and n_envs={self.env.num_envs})"
-                )
-        self.batch_size = batch_size[len(batch_size)]
         self.batch_size_dict = batch_size
+
+        for level in self.env_dict.keys():
+            assert (
+                self.batch_size_dict[level] > 1
+            ), "`batch_size` must be greater than 1. See https://github.com/DLR-RM/stable-baselines3/issues/440"
+
+            if self.env_dict[level] is not None:
+                # Check that `n_steps * n_envs > 1` to avoid NaN
+                # when doing advantage normalization
+                buffer_size = self.env_dict[level].num_envs * self.n_steps_dict[level]
+                assert (
+                    buffer_size > 1
+                ), f"`n_steps * n_envs` must be greater than 1. Currently n_steps={self.n_steps} and n_envs={self.env.num_envs}"
+                # Check that the rollout buffer size is a multiple of the mini-batch size
+                untruncated_batches = buffer_size // self.batch_size_dict[level]
+                if buffer_size % self.batch_size_dict[level] > 0:
+                    warnings.warn(
+                        f"You have specified a mini-batch size of {batch_size[len(batch_size)]},"
+                        f" but because the `RolloutBuffer` is of size `n_steps * n_envs = {buffer_size}`,"
+                        f" after every {untruncated_batches} untruncated mini-batches,"
+                        f" there will be a truncated mini-batch of size {buffer_size % batch_size[0]}\n"
+                        f"We recommend using a `batch_size` that is a factor of `n_steps * n_envs`.\n"
+                        f"Info: (n_steps={self.n_steps} and n_envs={self.env.num_envs})"
+                    )
         self.n_epochs = n_epochs
         self.clip_range = clip_range
         self.clip_range_vf = clip_range_vf
@@ -151,6 +154,17 @@ class PPO_ML(OnPolicyAlgorithmSingleLevel):
 
         if _init_setup_model:
             self._setup_model()
+
+    def _check_multi_level_variables(self):
+
+        assert np.diff(np.sort(self.env_dict.keys())) == np.ones(len(self.env_dict)), "levels must cover for level 1 to L each representing environment grid fidelity in ascending order "
+
+        assert np.array_equal(np.sort(self.env_dict.keys()), np.sort(self.n_steps_dict.keys()) ) , "`env_dict` and `n_step_dict` must have equal number of levels"
+        assert np.array_equal(np.sort(self.env_dict.keys()), np.sort(self.batch_size_dict.keys()) ) , "`env_dict` and `batch_size_dict` must have equal number of levels"
+
+        ratio = self.n_steps_dict[1]/ self.batch_size_dict[1]
+        for t,m in zip(self.n_steps_dict.values(), self.batch_size_dict.values()):
+            assert t/m==ratio, "ratio of n_steps to batch_size should be equal on all levels"
 
     def _setup_model(self) -> None:
         super(PPO_ML, self)._setup_model()
