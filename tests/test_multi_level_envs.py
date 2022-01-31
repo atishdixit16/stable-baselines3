@@ -58,8 +58,8 @@ def test_multiple_grid_envs(params_func, level):
         _, done = env.reset(), False
         while not done:
             assert env.k_load.shape == (env.ressim_params.level_dict[level][1], env.ressim_params.level_dict[level][0])
-            assert env.q_load.shape == (env.ressim_params.level_dict[level][1], env.ressim_params.level_dict[level][0])
-            assert env.s_load.shape == (env.ressim_params.level_dict[level][1], env.ressim_params.level_dict[level][0])
+            assert env.env_action.shape == (env.ressim_params.level_dict[level][1], env.ressim_params.level_dict[level][0])
+            assert env.state['s'].shape == (env.ressim_params.level_dict[level][1], env.ressim_params.level_dict[level][0])
             _, _, done, _ = env.step(env.action_space.sample())
 
 
@@ -99,14 +99,14 @@ def test_multi_level_env_mapping(params_func):
         env_dict[level+bump].map_from(env_dict[level])
 
         assert env_dict[level].episode_step == env_dict[level+bump].episode_step
-        assert env_dict[level].s_load.shape == (params_input.level_dict[level][1],params_input.level_dict[level][0])
-        assert env_dict[level+bump].s_load.shape == (params_input.level_dict[level+bump][1],params_input.level_dict[level+bump][0])
+        assert env_dict[level].state['s'].shape == (params_input.level_dict[level][1],params_input.level_dict[level][0])
+        assert env_dict[level+bump].state['s'].shape == (params_input.level_dict[level+bump][1],params_input.level_dict[level+bump][0])
 
         action = env_dict[level].action_space.sample() 
         _, r, done, _ = env_dict[level].step(action)
         _, r_, _, _ = env_dict[level+bump].step(action)
 
-        print(f'({env_dict[level].s_load.shape} -> {env_dict[level+bump].s_load.shape})')
+        # print(f'({env_dict[level].state['s'].shape} -> {env_dict[level+bump].state['s'].shape})')
         print(f'level({level} -> {level+bump}): reward ({ round(r*100, 2) } -> { round(r_*100, 2) })') 
 
         level = level + bump
@@ -132,8 +132,8 @@ def test_phi_a_inverse_function(params_func, level):
         _, done = env.reset(), False
         while not done:
             assert env.k_load.shape == (env.ressim_params.level_dict[level][1], env.ressim_params.level_dict[level][0])
-            assert env.q_load.shape == (env.ressim_params.level_dict[level][1], env.ressim_params.level_dict[level][0])
-            assert env.s_load.shape == (env.ressim_params.level_dict[level][1], env.ressim_params.level_dict[level][0])
+            assert env.env_action.shape == (env.ressim_params.level_dict[level][1], env.ressim_params.level_dict[level][0])
+            assert env.state['s'].shape == (env.ressim_params.level_dict[level][1], env.ressim_params.level_dict[level][0])
             action = env.action_space.sample()
             q_L = env.phi_a(action)
             action_ = env.phi_a_inverse(q_L)

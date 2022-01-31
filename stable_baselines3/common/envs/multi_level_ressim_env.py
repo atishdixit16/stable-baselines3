@@ -90,7 +90,7 @@ class RessimParams():
         self.n_prod = q_fine[q_fine<-self.tol].size
         self.p_x, self.p_y =  np.where(q_fine<-self.tol)[0], np.where(q_fine<-self.tol)[1]
 
-        # action and observation spaces
+        # policy_action and observation spaces
         self.observation_space = spaces.Box(low=np.array([-1]*(2*self.n_prod+self.n_inj), dtype=np.float64), 
                                             high=np.array([1]*(2*self.n_prod+self.n_inj), dtype=np.float64), 
                                             dtype=np.float64)
@@ -182,7 +182,7 @@ class MultiLevelRessimEnv(gym.Env):
         self.reward_range = (0.0, 1.0)
         self.spec = None
 
-        # define observation and action spaces
+        # define observation and policy_action spaces
         self.observation_space = self.ressim_params.observation_space
         self.action_space = self.ressim_params.action_space
 
@@ -193,12 +193,12 @@ class MultiLevelRessimEnv(gym.Env):
         self.np_random, seed = seeding.np_random(seed)
         return [seed]
 
-    def phi_a(self, action):
+    def phi_a(self, policy_action):
         
         # convert input array into producer/injector 
-        inj_flow = action[:self.ressim_params.n_inj] / np.sum(action[:self.ressim_params.n_inj])
+        inj_flow = policy_action[:self.ressim_params.n_inj] / np.sum(policy_action[:self.ressim_params.n_inj])
         inj_flow = self.ressim_params.c * inj_flow
-        prod_flow = action[self.ressim_params.n_inj:] / np.sum(action[self.ressim_params.n_inj:])
+        prod_flow = policy_action[self.ressim_params.n_inj:] / np.sum(policy_action[self.ressim_params.n_inj:])
         prod_flow = -self.ressim_params.c * prod_flow
         
         # add producer/injector flow values
@@ -220,11 +220,11 @@ class MultiLevelRessimEnv(gym.Env):
         return np.hstack((np.abs(inj_flow), np.abs(prod_flow)))
 
     def Phi_a(self, q) -> None:
-        self.q_load = fine_to_coarse_mapping(q, self.ressim_params.accmap, func=sum)
+        self.env_action = fine_to_coarse_mapping(q, self.ressim_params.accmap, func=sum)
         
     def Phi_s(self) -> None:
-        s_fine = coarse_to_fine_mapping(self.s_load, self.ressim_params.accmap)
-        p_fine = coarse_to_fine_mapping(self.p_load, self.ressim_params.accmap)
+        s_fine = coarse_to_fine_mapping(self.state['s'], self.ressim_params.accmap)
+        p_fine = coarse_to_fine_mapping(self.state['p'], self.ressim_params.accmap)
         return s_fine, p_fine
 
     def phi_s(self, s_fine, p_fine):
@@ -239,8 +239,8 @@ class MultiLevelRessimEnv(gym.Env):
 
     def simulation_step(self):
         # solve pressure
-        self.solverP = PressureEquation(self.ressim_params.grid, q=self.q_load, k=self.k_load, lamb_fn=self.ressim_params.lamb_fn)
-        self.solverS = SaturationEquation(self.ressim_params.grid, q=self.q_load, phi=self.ressim_params.phi, s=self.s_load, f_fn=self.ressim_params.f_fn, df_fn=self.ressim_params.df_fn)
+        self.solverP = PressureEquation(self.ressim_params.grid, q=self.env_action, k=self.k_load, lamb_fn=self.ressim_params.lamb_fn)
+        self.solverS = SaturationEquation(self.ressim_params.grid, q=self.env_action, phi=self.ressim_params.phi, s=self.state['s'], f_fn=self.ressim_params.f_fn, df_fn=self.ressim_params.df_fn)
 
         # solve pressure equation
         oil_pr = 0.0
@@ -250,12 +250,11 @@ class MultiLevelRessimEnv(gym.Env):
         for _ in range(self.ressim_params.nstep):
             # solve saturation equation
             self.solverS.step(self.ressim_params.dt)
-            oil_pr = oil_pr + -np.sum( self.q_load[self.q_load<0] * ( 1- self.ressim_params.f_fn(self.solverS.s[self.q_load<0]) ) )*self.ressim_params.dt
+            oil_pr = oil_pr + -np.sum( self.env_action[self.env_action<0] * ( 1- self.ressim_params.f_fn(self.solverS.s[self.env_action<0]) ) )*self.ressim_params.dt
 
-        # state
-        self.s_load = self.solverS.s
-        self.p_load = self.solverP.p
-        state = [self.s_load, self.p_load]
+        # state        
+        self.state['s'] = self.solverS.s
+        self.state['p'] = self.solverP.p
 
         #reward
         reward = oil_pr / self.ressim_params.ooip # recovery rate
@@ -267,10 +266,10 @@ class MultiLevelRessimEnv(gym.Env):
         else:
             done=False
 
-        return state, reward, done, {}
+        return self.state, reward, done, {}
 
-    def step(self, action):
-        q_fine = self.phi_a(action)
+    def step(self, policy_action):
+        q_fine = self.phi_a(policy_action)
         self.Phi_a(q_fine)
         _, reward, done, info = self.simulation_step()
         s_fine, p_fine = self.Phi_s()
@@ -279,7 +278,7 @@ class MultiLevelRessimEnv(gym.Env):
 
     def reset(self):
 
-        self.q_load = self.ressim_params.q
+        self.env_action = self.ressim_params.q
 
         # initialize dynamic parameters
         s = self.ressim_params.s
@@ -299,8 +298,7 @@ class MultiLevelRessimEnv(gym.Env):
 
     def set_dynamic_parameters(self, s, p, k_index, e):
         # dynamic parameters
-        self.s_load = s
-        self.p_load = p
+        self.state = {'s':s, 'p':p}
         self.k_index = k_index
         self.k_load = self.ressim_params.k_list[self.k_index]
         self.episode_step = e
@@ -312,8 +310,8 @@ class MultiLevelRessimEnv(gym.Env):
         if level_from > level_to:
             # fine to coarse mapping
             accmap = get_accmap(grid_from, grid_to)
-            s = fine_to_coarse_mapping(env.s_load, accmap, func=mean)
-            p = fine_to_coarse_mapping(env.p_load, accmap, func=mean)
+            s = fine_to_coarse_mapping(env.state['s'], accmap, func=mean)
+            p = fine_to_coarse_mapping(env.state['p'], accmap, func=mean)
             k_index = env.k_index
             e = env.episode_step
             self.set_dynamic_parameters(s,p,k_index,e)
@@ -321,8 +319,8 @@ class MultiLevelRessimEnv(gym.Env):
         else:
             # coarse to fine mapping
             accmap = get_accmap(grid_to, grid_from)
-            s = coarse_to_fine_mapping(env.s_load, accmap)
-            p = coarse_to_fine_mapping(env.p_load, accmap)
+            s = coarse_to_fine_mapping(env.state['s'], accmap)
+            p = coarse_to_fine_mapping(env.state['p'], accmap)
             k_index = env.k_index
             e = env.episode_step
             self.set_dynamic_parameters(s,p,k_index,e)
