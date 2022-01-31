@@ -135,12 +135,11 @@ def test_phi_a_inverse_function(params_func, level):
             assert env.q_load.shape == (env.ressim_params.level_dict[level][1], env.ressim_params.level_dict[level][0])
             assert env.s_load.shape == (env.ressim_params.level_dict[level][1], env.ressim_params.level_dict[level][0])
             action = env.action_space.sample()
-            action[:env.ressim_params.n_inj] = action[:env.ressim_params.n_inj] / np.sum( action[:env.ressim_params.n_inj] ) 
-            action[env.ressim_params.n_inj:] = action[env.ressim_params.n_inj:] / np.sum( action[env.ressim_params.n_inj:] ) 
             q_L = env.phi_a(action)
             action_ = env.phi_a_inverse(q_L)
+            q_L_ = env.phi_a(action_)
 
-            assert np.abs(action-action_).max() < 1e-10, np.abs(action-action_) 
+            assert np.abs(q_L-q_L_).max() < 1e-10, np.abs(q_L-q_L_) 
 
             _, _, done, _ = env.step(action)
 
