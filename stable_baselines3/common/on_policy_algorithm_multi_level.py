@@ -1,9 +1,11 @@
+from asyncio.constants import LOG_THRESHOLD_FOR_CONNLOST_WRITES
 import time
 from typing import Any, Dict, List, Optional, Tuple, Type, Union
 
 import gym
 import numpy as np
 import torch as th
+from stable_baselines3.common import distributions
 
 from stable_baselines3.common.base_class import BaseAlgorithm
 from stable_baselines3.common.buffers import DictRolloutBuffer, RolloutBuffer
@@ -168,16 +170,21 @@ class OnPolicyAlgorithmMultiLevel(BaseAlgorithm):
             sync_rollout_buffer.reset()
 
         for level in np.sort(env_dict.keys()):
+
+            if level > 1:
+                env_dict[level].map_from(env_dict[level-1])
             
             n_steps = 0
-
             # Sample new weights for the state dependent exploration
             if self.use_sde:
                 self.policy.reset_noise(env_dict[level].num_envs)
-
             callback.on_rollout_start()
 
             while n_steps < n_rollout_steps[level]:
+
+                if level > 1:
+                    env_dict[level-1].map_from(env_dict[level])
+            
                 if self.use_sde and self.sde_sample_freq > 0 and n_steps % self.sde_sample_freq == 0:
                     # Sample a new noise matrix
                     self.policy.reset_noise(env_dict[level].num_envs)
@@ -227,11 +234,56 @@ class OnPolicyAlgorithmMultiLevel(BaseAlgorithm):
                 self._last_obs = new_obs
                 self._last_episode_starts = dones
 
+                if level > 1:
+                    # collect rollout in synchronised rollout buffer
+                    with th.no_grad():
+                        # Convert to pytorch tensor or to TensorDict
+                        obs_ = self.env_dict[level-1].obs
+                        obs_tensor_ = obs_as_tensor(obs_, self.device)
+                        actions_ = actions
+                        _, values_, _ = self.policy.forward(obs_tensor_)
+                        log_probs_ = self.policy.get_distribution(obs_tensor_).log_prob(actions_)
+
+                    # Clip the actions to avoid out of bound error
+                    if isinstance(self.action_space, gym.spaces.Box):
+                        clipped_actions_ = np.clip(actions_, self.action_space.low, self.action_space.high)
+
+                    new_obs_, rewards_, dones_, infos_ = env_dict[level].step(clipped_actions_)
+
+                    self._update_info_buffer(infos_)
+
+                    if isinstance(self.action_space, gym.spaces.Discrete):
+                        # Reshape in case of discrete action
+                        actions_ = actions_.reshape(-1, 1)
+
+                    # Handle timeout by bootstraping with value function
+                    # see GitHub issue #633
+                    for idx, done in enumerate(dones_):
+                        if (
+                            done
+                            and infos_[idx].get("terminal_observation") is not None
+                            and infos_[idx].get("TimeLimit.truncated", False)
+                        ):
+                            terminal_obs = self.policy.obs_to_tensor(infos_[idx]["terminal_observation"])[0]
+                            with th.no_grad():
+                                terminal_value = self.policy.predict_values(terminal_obs)[0]
+                            rewards_[idx] += self.gamma * terminal_value
+
+                    sync_rollout_buffer_dict[level].add(obs_, actions_, rewards_, self._last_episode_starts, values_, log_probs_)
+
+                self._last_obs = new_obs
+                self._last_episode_starts = dones
+
             with th.no_grad():
                 # Compute value for the last timestep
                 values = self.policy.predict_values(obs_as_tensor(new_obs, self.device))
-
             rollout_buffer_dict[level].compute_returns_and_advantage(last_values=values, dones=dones)
+
+            if level > 1:
+                with th.no_grad():
+                    # Compute value for the last timestep
+                    values_ = self.policy.predict_values(obs_as_tensor(new_obs_, self.device))
+                sync_rollout_buffer_dict[level].compute_returns_and_advantage(last_values=values_, dones=dones)
 
         
         callback.on_rollout_end()
