@@ -9,7 +9,7 @@ from stable_baselines3.common import distributions
 
 from stable_baselines3.common.base_class import BaseAlgorithm
 from stable_baselines3.common.buffers import DictRolloutBuffer, RolloutBuffer
-from stable_baselines3.common.buffer_single_level import RolloutBufferSingleLevel
+from stable_baselines3.common.buffer_multi_level import RolloutBufferMultiLevel
 from stable_baselines3.common.callbacks import BaseCallback
 from stable_baselines3.common.policies import ActorCriticPolicy, BasePolicy
 from stable_baselines3.common.type_aliases import GymEnv, MaybeCallback, Schedule
@@ -113,7 +113,7 @@ class OnPolicyAlgorithmMultiLevel(BaseAlgorithm):
         self._setup_lr_schedule()
         self.set_random_seed(self.seed)
 
-        buffer_cls = DictRolloutBuffer if isinstance(self.observation_space, gym.spaces.Dict) else RolloutBufferSingleLevel
+        buffer_cls = DictRolloutBuffer if isinstance(self.observation_space, gym.spaces.Dict) else RolloutBufferMultiLevel
 
         for level in self.n_steps_dict.keys():
             self.rollout_buffer_dict[level] = buffer_cls(self.n_steps_dict[level],
