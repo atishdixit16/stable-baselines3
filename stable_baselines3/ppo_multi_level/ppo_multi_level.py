@@ -256,43 +256,61 @@ class PPO_ML(OnPolicyAlgorithmMultiLevel):
 
         # train for n_epochs epochs
         for epoch in range(self.n_epochs):
-            approx_kl_divs = []
-            # Do a complete pass on the rollout buffer
-            # for rollout_data in self.rollout_buffer_array[0].get(self.batch_size_array[0]):
-            for rollout_data in self.rollout_buffer_dict[1].get(self.batch_size_dict[1]):
-                policy_batch_loss, value_batch_loss, entropy_batch_loss, ratio = self.compute_batch_losses(rollout_data, clip_range, clip_range_vf)
-       
-                # Losses 
-                policy_loss = th.mean(policy_batch_loss)
-                value_loss = th.mean(value_batch_loss)
-                entropy_loss = -th.mean(entropy_batch_loss)
 
-                # Logging
-                pg_losses.append(policy_loss.item())
-                value_losses.append(value_loss.item())
-                entropy_losses.append(entropy_loss.item())
-                batch_clip_fraction = (th.abs(ratio - 1) > clip_range).float()
-                clip_fraction = th.mean(batch_clip_fraction).item()
-                clip_fractions.append(clip_fraction)
-    
-                loss = policy_loss + self.ent_coef * entropy_loss + self.vf_coef * value_loss
+            batch_generator = {}
+            for level in self.rollout_buffer_dict.keys():
+                batch_generator[level] = self.rollout_buffer_dict[level].get_sync(self.sync_rollout_buffer_dict, self.batch_size_dict[level])
 
-                # Calculate approximate form of reverse KL Divergence for early stopping
-                # see issue #417: https://github.com/DLR-RM/stable-baselines3/issues/417
-                # and discussion in PR #419: https://github.com/DLR-RM/stable-baselines3/pull/419
-                # and Schulman blog: http://joschu.net/blog/kl-approx.html
-                with th.no_grad():
-                    log_ratio = th.log(ratio)
-                    approx_kl_div = th.mean((ratio - 1) - log_ratio).cpu().numpy()
-                    approx_kl_divs.append(approx_kl_div)
+            for _ in np.ceil(self.n_steps_dict[1]*self.n_envs/self.batch_size_dict[1]):
 
-                if self.target_kl is not None and approx_kl_div > 1.5 * self.target_kl:
-                    continue_training = False
-                    if self.verbose >= 1:
-                        print(f"Early stopping at step {epoch} due to reaching max kl: {approx_kl_div:.2f}")
-                    break
+                loss_mlmc = 0.0
+                approx_kl_divs = []
+                # Do a complete pass on the rollout buffer
+                # for rollout_data in self.rollout_buffer_array[0].get(self.batch_size_array[0]):
+                for level in self.rollout_buffer_dict.keys():
 
-                self.update_policy(loss)
+                    # compute batch loss on rollout buffer
+                    policy_batch_loss, value_batch_loss, entropy_batch_loss, ratio = self.compute_batch_losses(next(batch_generator[level]), clip_range, clip_range_vf)
+
+                    # compute batch loss on sync rollout buffer
+                    if level > 1:
+                        policy_batch_loss_, value_batch_loss_, entropy_batch_loss_, _ = self.compute_batch_losses(next(batch_generator[level]), clip_range, clip_range_vf)
+                    else:
+                        policy_batch_loss_, value_batch_loss_, entropy_batch_loss_ = 0,0,0
+
+                    # averaging loss difference terms of MLMC estimator at current level
+                    policy_loss = th.mean(policy_batch_loss - policy_batch_loss_)
+                    value_loss = th.mean(value_batch_loss - value_batch_loss_)
+                    entropy_loss = -th.mean(entropy_batch_loss - entropy_batch_loss_)
+
+                    # Logging
+                    pg_losses.append(policy_batch_loss.item())
+                    value_losses.append(value_batch_loss.item())
+                    entropy_losses.append(entropy_batch_loss.item())
+                    batch_clip_fraction = (th.abs(ratio - 1) > clip_range).float()
+                    clip_fraction = th.mean(batch_clip_fraction).item()
+                    clip_fractions.append(clip_fraction)
+
+
+                    # Calculate a}p}proximate form of reverse KL Divergence for early stopping
+                    # see issue #417: https://github.com/DLR-RM/stable-baselines3/issues/417
+                    # and discussion in PR #419: https://github.com/DLR-RM/stable-baselines3/pull/419
+                    # and Schulman blog: http://joschu.net/blog/kl-approx.html
+                    with th.no_grad():
+                        log_ratio = th.log(ratio)
+                        approx_kl_div = th.mean((ratio - 1) - log_ratio).cpu().numpy()
+                        approx_kl_divs.append(approx_kl_div)
+
+                    if self.target_kl is not None and approx_kl_div > 1.5 * self.target_kl:
+                        continue_training = False
+                        if self.verbose >= 1:
+                            print(f"Early stopping at step {epoch} due to reaching max kl: {approx_kl_div:.2f}")
+                        break
+
+                    loss_l = policy_loss + self.ent_coef * entropy_loss + self.vf_coef * value_loss
+                    loss_mlmc += loss_l
+
+                self.update_policy(loss_mlmc)
 
             if not continue_training:
                 break
