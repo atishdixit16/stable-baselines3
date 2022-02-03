@@ -316,7 +316,9 @@ class PPO_ML(OnPolicyAlgorithmMultiLevel):
                 break
 
         self._n_updates += self.n_epochs
-        explained_var = explained_variance(self.rollout_buffer_dict[1].values.flatten(), self.rollout_buffer_dict[1].returns.flatten())
+        values_array = np.hstack( tuple( self.rollout_buffer_dict[level].values.flatten() for level in self.rollout_buffer_dict.keys() ) )
+        returns_array = np.hstack( tuple( self.rollout_buffer_dict[level].returns.flatten() for level in self.rollout_buffer_dict.keys() ) )
+        explained_var = explained_variance( values_array, returns_array )
 
         # Logs
         self.logger.record("train/entropy_loss", np.mean(entropy_losses))
