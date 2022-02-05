@@ -169,10 +169,10 @@ class OnPolicyAlgorithmMultiLevel(BaseAlgorithm):
             rollout_buffer.reset()
             sync_rollout_buffer.reset()
 
-        for level in np.sort(env_dict.keys()):
+        for level in np.sort( list(env_dict.keys()) ):
 
             if level > 1:
-                env_dict[level].map_from(env_dict[level-1])
+                env_dict[level].env_method('map_from' , (env_dict[level-1]))
             
             n_steps = 0
             # Sample new weights for the state dependent exploration
@@ -319,7 +319,7 @@ class OnPolicyAlgorithmMultiLevel(BaseAlgorithm):
 
         while self.num_timesteps < total_timesteps:
 
-            continue_training = self.collect_rollouts(self.env_dict, callback, self.rollout_buffer_dict, n_rollout_steps=self.n_steps_dict)
+            continue_training = self.collect_rollouts(self.env_dict, callback, self.rollout_buffer_dict, self.sync_rollout_buffer_dict, self.n_steps_dict)
 
             if continue_training is False:
                 break

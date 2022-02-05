@@ -63,7 +63,7 @@ def test_multiple_grid_envs(params_func, level):
             _, _, done, _ = env.step(env.action_space.sample())
 
 
-@pytest.mark.parametrize("params_func", [generate_env_case_1_params,generate_env_case_2_params])
+@pytest.mark.parametrize("params_func", [generate_env_case_1_params, generate_env_case_2_params])
 def test_multi_level_env_mapping(params_func):
     """
     test mapping of environement from different levels during the transitions

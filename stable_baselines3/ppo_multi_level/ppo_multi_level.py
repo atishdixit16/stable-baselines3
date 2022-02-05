@@ -118,11 +118,12 @@ class PPO_ML(OnPolicyAlgorithmMultiLevel):
             ),
         )
 
-        # check multi-level variables
-        self._check_multi_level_variables()
         # Sanity check, otherwise it will lead to noisy gradient and NaN
         # because of the advantage normalization
         self.batch_size_dict = batch_size
+
+        # check multi-level variables
+        self._check_multi_level_variables()
 
         for level in self.env_dict.keys():
             assert (
@@ -157,10 +158,14 @@ class PPO_ML(OnPolicyAlgorithmMultiLevel):
 
     def _check_multi_level_variables(self):
 
-        assert np.diff(np.sort(self.env_dict.keys())) == np.ones(len(self.env_dict)), "levels must cover for level 1 to L each representing environment grid fidelity in ascending order "
+        env_keys_list = list(self.env_dict.keys())
+        nstep_keys_list = list(self.n_steps_dict.keys())
+        batch_size_keys_list = list(self.batch_size_dict.keys())
 
-        assert np.array_equal(np.sort(self.env_dict.keys()), np.sort(self.n_steps_dict.keys()) ) , "`env_dict` and `n_step_dict` must have equal number of levels"
-        assert np.array_equal(np.sort(self.env_dict.keys()), np.sort(self.batch_size_dict.keys()) ) , "`env_dict` and `batch_size_dict` must have equal number of levels"
+        assert np.array_equal(np.diff(np.sort(env_keys_list)), np.ones(len(self.env_dict)-1) ), "levels must cover for level 1 to L each representing environment grid fidelity in ascending order "
+
+        assert np.array_equal(np.sort(env_keys_list), np.sort(nstep_keys_list) ) , "`env_dict` and `n_step_dict` must have equal number of levels"
+        assert np.array_equal(np.sort(env_keys_list), np.sort(batch_size_keys_list) ) , "`env_dict` and `batch_size_dict` must have equal number of levels"
 
         ratio = self.n_steps_dict[1]/ self.batch_size_dict[1]
         for t,m in zip(self.n_steps_dict.values(), self.batch_size_dict.values()):
