@@ -264,9 +264,9 @@ class PPO_ML(OnPolicyAlgorithmMultiLevel):
 
             batch_generator = {}
             for level in self.rollout_buffer_dict.keys():
-                batch_generator[level] = self.rollout_buffer_dict[level].get_sync(self.sync_rollout_buffer_dict, self.batch_size_dict[level])
+                batch_generator[level] = self.rollout_buffer_dict[level].get_sync(self.sync_rollout_buffer_dict[level], self.batch_size_dict[level])
 
-            for _ in np.ceil(self.n_steps_dict[1]*self.n_envs/self.batch_size_dict[1]):
+            for _ in range( int(np.ceil(self.n_steps_dict[1]*self.n_envs/self.batch_size_dict[1])) ):
 
                 loss_mlmc = 0.0
                 approx_kl_divs = []
@@ -289,9 +289,9 @@ class PPO_ML(OnPolicyAlgorithmMultiLevel):
                     entropy_loss = -th.mean(entropy_batch_loss - entropy_batch_loss_)
 
                     # Logging
-                    pg_losses.append(policy_batch_loss.item())
-                    value_losses.append(value_batch_loss.item())
-                    entropy_losses.append(entropy_batch_loss.item())
+                    pg_losses.append(policy_batch_loss.mean().item())
+                    value_losses.append(value_batch_loss.mean().item())
+                    entropy_losses.append(entropy_batch_loss.mean().item())
                     batch_clip_fraction = (th.abs(ratio - 1) > clip_range).float()
                     clip_fraction = th.mean(batch_clip_fraction).item()
                     clip_fractions.append(clip_fraction)

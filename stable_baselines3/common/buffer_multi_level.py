@@ -61,7 +61,10 @@ class RolloutBufferMultiLevel(RolloutBuffer):
 
             for tensor in _tensor_names:
                 self.__dict__[tensor] = self.swap_and_flatten(self.__dict__[tensor])
+                sync_rollout_buffer.__dict__[tensor] = sync_rollout_buffer.swap_and_flatten(sync_rollout_buffer.__dict__[tensor])
             self.generator_ready = True
+            sync_rollout_buffer.generator_ready = True
+
 
         # Return everything, don't create minibatches
         if batch_size is None:

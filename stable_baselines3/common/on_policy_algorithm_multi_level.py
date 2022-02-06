@@ -172,7 +172,9 @@ class OnPolicyAlgorithmMultiLevel(BaseAlgorithm):
         for level in np.sort( list(env_dict.keys()) ):
 
             if level > 1:
-                env_dict[level].env_method('map_from' , (env_dict[level-1]))
+                env_dict[level].map_from((env_dict[level-1]))
+
+            print(f'level: {level}')
             
             n_steps = 0
             # Sample new weights for the state dependent exploration
@@ -181,6 +183,7 @@ class OnPolicyAlgorithmMultiLevel(BaseAlgorithm):
             callback.on_rollout_start()
 
             while n_steps < n_rollout_steps[level]:
+                print(f'    step: {n_steps}')
 
                 if level > 1:
                     env_dict[level-1].map_from(env_dict[level])
@@ -238,17 +241,17 @@ class OnPolicyAlgorithmMultiLevel(BaseAlgorithm):
                     # collect rollout in synchronised rollout buffer
                     with th.no_grad():
                         # Convert to pytorch tensor or to TensorDict
-                        obs_ = self.env_dict[level-1].obs
+                        obs_ = self.env_dict[level-1].get_current_obs()
                         obs_tensor_ = obs_as_tensor(obs_, self.device)
                         actions_ = actions
                         _, values_, _ = self.policy.forward(obs_tensor_)
-                        log_probs_ = self.policy.get_distribution(obs_tensor_).log_prob(actions_)
+                        log_probs_ = self.policy.get_distribution(obs_tensor_).log_prob(th.from_numpy(actions_).to(self.device))
 
                     # Clip the actions to avoid out of bound error
                     if isinstance(self.action_space, gym.spaces.Box):
                         clipped_actions_ = np.clip(actions_, self.action_space.low, self.action_space.high)
 
-                    new_obs_, rewards_, dones_, infos_ = env_dict[level].step(clipped_actions_)
+                    new_obs_, rewards_, _, infos_ = env_dict[level-1].step(clipped_actions_)
 
                     self._update_info_buffer(infos_)
 
@@ -258,7 +261,7 @@ class OnPolicyAlgorithmMultiLevel(BaseAlgorithm):
 
                     # Handle timeout by bootstraping with value function
                     # see GitHub issue #633
-                    for idx, done in enumerate(dones_):
+                    for idx, done in enumerate(dones):
                         if (
                             done
                             and infos_[idx].get("terminal_observation") is not None
@@ -270,6 +273,8 @@ class OnPolicyAlgorithmMultiLevel(BaseAlgorithm):
                             rewards_[idx] += self.gamma * terminal_value
 
                     sync_rollout_buffer_dict[level].add(obs_, actions_, rewards_, self._last_episode_starts, values_, log_probs_)
+
+                    # env_dict[level].reset_from_dones(dones)
 
                 self._last_obs = new_obs
                 self._last_episode_starts = dones
@@ -314,6 +319,11 @@ class OnPolicyAlgorithmMultiLevel(BaseAlgorithm):
         total_timesteps, callback = self._setup_learn(
             total_timesteps, eval_env, callback, eval_freq, n_eval_episodes, eval_log_path, reset_num_timesteps, tb_log_name
         )
+
+        # reset rest of the environemnts (besides level 1, which is done in `_setup_learn`) in the env_dict
+        for level in self.env_dict.keys():
+            if level > 1:
+                _ = self.env_dict[level].reset()
 
         callback.on_training_start(locals(), globals())
 

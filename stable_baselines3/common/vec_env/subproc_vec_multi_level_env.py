@@ -15,16 +15,11 @@ class SubprocVecMultiLevelEnv(SubprocVecEnv):
     def __init__(self, env_fns: List[Callable[[], gym.Env]]):
         super(SubprocVecMultiLevelEnv, self).__init__(env_fns=env_fns)
 
-    def env_method(self, envs) -> List[Any]:
-        """Call instance methods of vectorized environments."""
-        indices = self._get_indices(None)
-        return [getattr(self.envs[i], 'map_from')(envs[i]) for i in indices]
 
-
-    def map_from(self, envs) -> List[Any]:
+    def map_from(self, env) -> List[Any]:
         """Call instance methods of vectorized environments."""
         indices = self._get_indices(None)
         for i in indices:
-            self.remote[i].send(("env_method", ('map_from', envs[i])))
+            self.remote[i].send(("env_method", ('map_from', env.envs[i])))
         target_remotes = [self.remotes[i] for i in indices]
         return [remote.recv() for remote in target_remotes]
