@@ -1,4 +1,3 @@
-from os import stat
 import numpy as np
 import gym
 import functools
@@ -175,6 +174,7 @@ class MultiLevelRessimEnv(gym.Env):
         assert level in ressim_params.level_dict.keys(), 'invalid level value, should be among the level_dict keys'
 
         self.ressim_params = ressim_params
+        self.grid = self.ressim_params.grid
         self.level = level
         
         # RL parameters ( accordind to instructions on: https://github.com/openai/gym/blob/master/gym/core.py )
@@ -303,28 +303,36 @@ class MultiLevelRessimEnv(gym.Env):
         self.k_load = self.ressim_params.k_list[self.k_index]
         self.episode_step = e
 
-    def map_from(self, env):
-        grid_from, level_from = env.ressim_params.grid, env.level
+    def map_from_(self, grid, level, state, k_index, episode_step):
+
+        grid_from, level_from = grid, level
         grid_to, level_to = self.ressim_params.grid, self.level
         
         if level_from > level_to:
             # fine to coarse mapping
             accmap = get_accmap(grid_from, grid_to)
-            s = fine_to_coarse_mapping(env.state['s'], accmap, func=mean)
-            p = fine_to_coarse_mapping(env.state['p'], accmap, func=mean)
-            k_index = env.k_index
-            e = env.episode_step
-            self.set_dynamic_parameters(s,p,k_index,e)
+            s = fine_to_coarse_mapping(state['s'], accmap, func=mean)
+            p = fine_to_coarse_mapping(state['p'], accmap, func=mean)
+            self.set_dynamic_parameters(s,p,k_index,episode_step)
             self.update_current_obs()
         else:
             # coarse to fine mapping
             accmap = get_accmap(grid_to, grid_from)
-            s = coarse_to_fine_mapping(env.state['s'], accmap)
-            p = coarse_to_fine_mapping(env.state['p'], accmap)
-            k_index = env.k_index
-            e = env.episode_step
-            self.set_dynamic_parameters(s,p,k_index,e)
+            s = coarse_to_fine_mapping(state['s'], accmap)
+            p = coarse_to_fine_mapping(state['p'], accmap)
+            self.set_dynamic_parameters(s,p,k_index,episode_step)
             self.update_current_obs()
+
+
+    def map_from(self, env):
+
+        grid = env.ressim_params.grid
+        level = env.level
+        state = env.state
+        k_index = env.k_index
+        episode_step = env.episode_step
+
+        self._map_from(grid, level, state, k_index, episode_step)
 
     def set_k(self, k):
         self.ressim_params.set_k(k)

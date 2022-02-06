@@ -173,8 +173,6 @@ class OnPolicyAlgorithmMultiLevel(BaseAlgorithm):
 
             if level > 1:
                 env_dict[level].map_from((env_dict[level-1]))
-
-            print(f'level: {level}')
             
             n_steps = 0
             # Sample new weights for the state dependent exploration
@@ -183,7 +181,6 @@ class OnPolicyAlgorithmMultiLevel(BaseAlgorithm):
             callback.on_rollout_start()
 
             while n_steps < n_rollout_steps[level]:
-                print(f'    step: {n_steps}')
 
                 if level > 1:
                     env_dict[level-1].map_from(env_dict[level])
