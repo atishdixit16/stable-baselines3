@@ -332,7 +332,7 @@ class MultiLevelRessimEnv(gym.Env):
         k_index = env.k_index
         episode_step = env.episode_step
 
-        self._map_from(grid, level, state, k_index, episode_step)
+        self.map_from_(grid, level, state, k_index, episode_step)
 
     def set_k(self, k):
         self.ressim_params.set_k(k)
