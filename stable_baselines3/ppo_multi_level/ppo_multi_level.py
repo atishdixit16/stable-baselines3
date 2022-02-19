@@ -265,10 +265,14 @@ class PPO_ML(OnPolicyAlgorithmMultiLevel):
 
             batch_generator = {}
             for level in self.rollout_buffer_dict.keys():
-                batch_generator[level] = self.rollout_buffer_dict[level].get_sync(self.sync_rollout_buffer_dict[level], self.batch_size_dict[level])
+                if len(self.rollout_buffer_dict): # special case: no need of sync rollout buffer when using a single level 
+                    batch_generator[level] = self.rollout_buffer_dict[level].get(self.batch_size_dict[level])
+                else:
+                    batch_generator[level] = self.rollout_buffer_dict[level].get_sync(self.sync_rollout_buffer_dict[level], self.batch_size_dict[level])
+
 
             for _ in range( int(np.ceil(self.n_steps_dict[1]*self.n_envs/self.batch_size_dict[1])) ):
-
+                
                 loss_mlmc = 0.0
                 approx_kl_divs = []
                 # Do a complete pass on the rollout buffer
@@ -277,7 +281,7 @@ class PPO_ML(OnPolicyAlgorithmMultiLevel):
 
                     # compute batch loss on rollout buffer
                     policy_batch_loss, value_batch_loss, entropy_batch_loss, ratio = self.compute_batch_losses(next(batch_generator[level]), clip_range, clip_range_vf)
-
+                    
                     # compute batch loss on sync rollout buffer
                     if level > 1:
                         policy_batch_loss_, value_batch_loss_, entropy_batch_loss_, _ = self.compute_batch_losses(next(batch_generator[level]), clip_range, clip_range_vf)
@@ -315,7 +319,7 @@ class PPO_ML(OnPolicyAlgorithmMultiLevel):
 
                     loss_l = policy_loss + self.ent_coef * entropy_loss + self.vf_coef * value_loss
                     loss_mlmc += loss_l
-
+                
                 self.update_policy(loss_mlmc)
 
             if not continue_training:

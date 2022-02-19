@@ -247,7 +247,7 @@ class PPO_SL(OnPolicyAlgorithmSingleLevel):
             # for rollout_data in self.rollout_buffer_array[0].get(self.batch_size_array[0]):
             for rollout_data in self.rollout_buffer_dict[1].get(self.batch_size_dict[1]):
                 policy_batch_loss, value_batch_loss, entropy_batch_loss, ratio = self.compute_batch_losses(rollout_data, clip_range, clip_range_vf)
-       
+
                 # Losses 
                 policy_loss = th.mean(policy_batch_loss)
                 value_loss = th.mean(value_batch_loss)
