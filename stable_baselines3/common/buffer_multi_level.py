@@ -72,7 +72,6 @@ class RolloutBufferMultiLevel(RolloutBuffer):
 
         start_idx = 0
         while start_idx < self.buffer_size * self.n_envs:
-            print( indices[start_idx : start_idx + batch_size] )
             yield self._get_samples(indices[start_idx : start_idx + batch_size])
             yield sync_rollout_buffer._get_samples(indices[start_idx : start_idx + batch_size])
             start_idx += batch_size
