@@ -141,11 +141,12 @@ class OnPolicyAlgorithmMultiLevel(BaseAlgorithm):
         self.policy = self.policy.to(self.device)
 
     def _setup_analysis_buffers(self, num_expt):
+        self.num_expt = num_expt
         self.analysis_rollout_buffer_dict = {}
         buffer_cls = DictRolloutBuffer if isinstance(self.observation_space, gym.spaces.Dict) else RolloutBufferMultiLevel
         fine_level = len(self.n_steps_dict)
         for level in self.n_steps_dict.keys():
-            self.analysis_rollout_buffer_dict[level] = buffer_cls(self.n_steps_dict[fine_level]*num_expt,
+            self.analysis_rollout_buffer_dict[level] = buffer_cls(self.n_steps_dict[fine_level]*self.num_expt,
                                                          self.observation_space,
                                                          self.action_space,
                                                          device=self.device,
@@ -304,6 +305,161 @@ class OnPolicyAlgorithmMultiLevel(BaseAlgorithm):
         callback.on_rollout_end()
 
         return True
+
+
+    def collect_analysis_rollouts(
+        self,
+        env_dict: 'dict[int: VecEnv]',
+        callback: BaseCallback,
+        analysis_rollout_buffer_dict: 'dict[int: RolloutBuffer]',
+        ) -> bool:
+        """
+        Collect experiences using the current policy and fill a ``RolloutBuffer``.
+        The term rollout here refers to the model-free notion and should not
+        be used with the concept of rollout used in model-based RL or planning.
+
+        :param env: The training environment
+        :param callback: Callback that will be called at each step
+            (and at the beginning and end of the rollout)
+        :param rollout_buffer: Buffer to fill with rollouts
+        :param n_steps: Number of experiences to collect per environment
+        :return: True if function returned with at least `n_rollout_steps`
+            collected, False if callback terminated rollout prematurely.
+        """
+        assert self._last_obs is not None, "No previous observation was provided"
+        # Switch to eval mode (this affects batch norm / dropout)
+        self.policy.set_training_mode(False)
+
+        fine_level = len(self.n_steps_dict)
+        n_rollout_steps = self.n_steps_dict[fine_level]*self.num_expt
+
+        for analysis_rollout_buffer in analysis_rollout_buffer_dict.values():
+            analysis_rollout_buffer.reset()
+
+        
+        n_steps = 0
+        # Sample new weights for the state dependent exploration
+        if self.use_sde:
+            self.policy.reset_noise(env_dict[fine_level].num_envs)
+        callback.on_rollout_start()
+
+        while n_steps < n_rollout_steps:
+
+            for level in range(1,fine_level):
+                env_dict[level].map_from(env_dict[fine_level])
+        
+            if self.use_sde and self.sde_sample_freq > 0 and n_steps % self.sde_sample_freq == 0:
+                # Sample a new noise matrix
+                self.policy.reset_noise(env_dict[fine_level].num_envs)
+
+            with th.no_grad():
+                # Convert to pytorch tensor or to TensorDict
+                obs_tensor = obs_as_tensor(self._last_obs, self.device)
+                actions, values, log_probs = self.policy.forward(obs_tensor)
+            actions = actions.cpu().numpy()
+
+            # Rescale and perform action
+            clipped_actions = actions
+            # Clip the actions to avoid out of bound error
+            if isinstance(self.action_space, gym.spaces.Box):
+                clipped_actions = np.clip(actions, self.action_space.low, self.action_space.high)
+
+            new_obs, rewards, dones, infos = env_dict[fine_level].step(clipped_actions)
+
+            self.num_timesteps += env_dict[fine_level].num_envs
+
+            # Give access to local variables
+            callback.update_locals(locals())
+            if callback.on_step() is False:
+                return False
+
+            self._update_info_buffer(infos)
+            n_steps += 1
+
+            if isinstance(self.action_space, gym.spaces.Discrete):
+                # Reshape in case of discrete action
+                actions = actions.reshape(-1, 1)
+
+            # Handle timeout by bootstraping with value function
+            # see GitHub issue #633
+            for idx, done in enumerate(dones):
+                if (
+                    done
+                    and infos[idx].get("terminal_observation") is not None
+                    and infos[idx].get("TimeLimit.truncated", False)
+                ):
+                    terminal_obs = self.policy.obs_to_tensor(infos[idx]["terminal_observation"])[0]
+                    with th.no_grad():
+                        terminal_value = self.policy.predict_values(terminal_obs)[0]
+                    rewards[idx] += self.gamma * terminal_value
+
+            analysis_rollout_buffer_dict[fine_level].add(self._last_obs, actions, rewards, self._last_episode_starts, values, log_probs)
+            self._last_obs = new_obs
+            self._last_episode_starts = dones
+
+            last_obs_dict = {}
+            last_values_dict = {}
+
+            for level in range(1,fine_level):
+                # collect rollout in synchronised rollout buffer
+                with th.no_grad():
+                    # Convert to pytorch tensor or to TensorDict
+                    obs_ = self.env_dict[level].get_current_obs()
+                    obs_tensor_ = obs_as_tensor(obs_, self.device)
+                    actions_ = actions
+                    _, values_, _ = self.policy.forward(obs_tensor_)
+                    log_probs_ = self.policy.get_distribution(obs_tensor_).log_prob(th.from_numpy(actions_).to(self.device))
+
+                # Clip the actions to avoid out of bound error
+                if isinstance(self.action_space, gym.spaces.Box):
+                    clipped_actions_ = np.clip(actions_, self.action_space.low, self.action_space.high)
+
+                new_obs_, rewards_, _, infos_ = env_dict[level].step(clipped_actions_)
+
+                self._update_info_buffer(infos_)
+
+                if isinstance(self.action_space, gym.spaces.Discrete):
+                    # Reshape in case of discrete action
+                    actions_ = actions_.reshape(-1, 1)
+
+                # Handle timeout by bootstraping with value function
+                # see GitHub issue #633
+                for idx, done in enumerate(dones):
+                    if (
+                        done
+                        and infos_[idx].get("terminal_observation") is not None
+                        and infos_[idx].get("TimeLimit.truncated", False)
+                    ):
+                        terminal_obs = self.policy.obs_to_tensor(infos_[idx]["terminal_observation"])[0]
+                        with th.no_grad():
+                            terminal_value = self.policy.predict_values(terminal_obs)[0]
+                        rewards_[idx] += self.gamma * terminal_value
+
+                analysis_rollout_buffer_dict[level].add(obs_, actions_, rewards_, self._last_episode_starts, values_, log_probs_)
+
+                # env_dict[level].reset_from_dones(dones)
+                last_obs_dict[level] = new_obs_
+                last_values_dict[level] = values_
+
+            self._last_obs = new_obs
+            self._last_episode_starts = dones
+
+        with th.no_grad():
+            # Compute value for the last timestep
+            values = self.policy.predict_values(obs_as_tensor(new_obs, self.device))
+        analysis_rollout_buffer_dict[fine_level].compute_returns_and_advantage(last_values=values, dones=dones)
+
+        for level in range(1,fine_level):
+            with th.no_grad():
+                # Compute value for the last timestep
+                values_ = self.policy.predict_values(obs_as_tensor(last_obs_dict[level], self.device))
+            analysis_rollout_buffer_dict[level].compute_returns_and_advantage(last_values=last_values_dict[level], dones=dones)
+
+        
+        callback.on_rollout_end()
+
+        return True
+
 
     def train(self) -> None:
         """
