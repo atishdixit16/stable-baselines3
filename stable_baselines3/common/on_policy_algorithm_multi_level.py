@@ -140,6 +140,19 @@ class OnPolicyAlgorithmMultiLevel(BaseAlgorithm):
         )
         self.policy = self.policy.to(self.device)
 
+    def _setup_analysis_buffers(self, num_expt):
+        self.analysis_rollout_buffer_dict = {}
+        buffer_cls = DictRolloutBuffer if isinstance(self.observation_space, gym.spaces.Dict) else RolloutBufferMultiLevel
+        fine_level = len(self.n_steps_dict)
+        for level in self.n_steps_dict.keys():
+            self.analysis_rollout_buffer_dict[level] = buffer_cls(self.n_steps_dict[fine_level]*num_expt,
+                                                         self.observation_space,
+                                                         self.action_space,
+                                                         device=self.device,
+                                                         gamma=self.gamma,
+                                                         gae_lambda=self.gae_lambda,
+                                                         n_envs=self.n_envs )
+
     def collect_rollouts(
         self,
         env_dict: 'dict[int: VecEnv]',
