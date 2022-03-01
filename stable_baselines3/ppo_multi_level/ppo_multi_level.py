@@ -474,7 +474,7 @@ class PPO_ML(OnPolicyAlgorithmMultiLevel):
     ):
 
         return super(PPO_ML, self).mlmc_analysis(
-        total_timesteps: int,
+        total_timesteps=total_timesteps,
         callback=callback,
         log_interval=log_interval,
         eval_env=eval_env,
