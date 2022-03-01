@@ -140,7 +140,7 @@ class OnPolicyAlgorithmMultiLevel(BaseAlgorithm):
         )
         self.policy = self.policy.to(self.device)
 
-    def _setup_analysis_buffers(self, num_expt):
+    def _setup_analysis(self, num_expt) -> None:
         self.num_expt = num_expt
         self.analysis_rollout_buffer_dict = {}
         buffer_cls = DictRolloutBuffer if isinstance(self.observation_space, gym.spaces.Dict) else RolloutBufferMultiLevel
@@ -312,6 +312,7 @@ class OnPolicyAlgorithmMultiLevel(BaseAlgorithm):
         env_dict: 'dict[int: VecEnv]',
         callback: BaseCallback,
         analysis_rollout_buffer_dict: 'dict[int: RolloutBuffer]',
+        n_rollout_steps: 'int',
         ) -> bool:
         """
         Collect experiences using the current policy and fill a ``RolloutBuffer``.
@@ -331,7 +332,6 @@ class OnPolicyAlgorithmMultiLevel(BaseAlgorithm):
         self.policy.set_training_mode(False)
 
         fine_level = len(self.n_steps_dict)
-        n_rollout_steps = self.n_steps_dict[fine_level]*self.num_expt
 
         for analysis_rollout_buffer in analysis_rollout_buffer_dict.values():
             analysis_rollout_buffer.reset()
@@ -525,6 +525,71 @@ class OnPolicyAlgorithmMultiLevel(BaseAlgorithm):
                 self.logger.dump(step=self.num_timesteps)
 
             self.train()
+
+        callback.on_training_end()
+
+        return self
+
+    def mlmc_analysis(
+        self,
+        total_timesteps: int,
+        callback: MaybeCallback = None,
+        log_interval: int = 1,
+        eval_env: Optional[GymEnv] = None,
+        eval_freq: int = -1,
+        n_eval_episodes: int = 5,
+        tb_log_name: str = "OnPolicyAlgorithmMultiLevel",
+        eval_log_path: Optional[str] = None,
+        reset_num_timesteps: bool = True,
+        n_expt: int = 100,
+        analysis_interval: int = 100
+    ) -> "OnPolicyAlgorithmMultiLevel":
+
+        iteration = 0
+
+        self._setup_analysis(n_expt)
+
+        total_timesteps, callback = self._setup_learn(
+            total_timesteps, eval_env, callback, eval_freq, n_eval_episodes, eval_log_path, reset_num_timesteps, tb_log_name
+        )
+
+        # reset rest of the environemnts (besides level 1, which is done in `_setup_learn`) in the env_dict
+        for level in self.env_dict.keys():
+            if level > 1:
+                _ = self.env_dict[level].reset()
+        
+        fine_level = len(self.env_dict)
+
+        callback.on_training_start(locals(), globals())
+
+        while self.num_timesteps < total_timesteps:
+
+            if iteration % analysis_interval == 0:
+                n_rollout_steps = self.n_steps_dict[fine_level]*self.num_expt
+            else:
+                n_rollout_steps = self.n_steps_dict[fine_level]
+
+            continue_training = self.collect_analysis_rollouts(self.env_dict, callback, self.analysis_rollout_buffer_dict, n_rollout_steps)
+
+            if continue_training is False:
+                break
+
+            iteration += 1
+            self._update_current_progress_remaining(self.num_timesteps, total_timesteps)
+
+            # Display training infos
+            if log_interval is not None and iteration % log_interval == 0:
+                fps = int((self.num_timesteps - self._num_timesteps_at_start) / (time.time() - self.start_time))
+                self.logger.record("time/iterations", iteration, exclude="tensorboard")
+                if len(self.ep_info_buffer) > 0 and len(self.ep_info_buffer[0]) > 0:
+                    self.logger.record("rollout/ep_rew_mean", safe_mean([ep_info["r"] for ep_info in self.ep_info_buffer]))
+                    self.logger.record("rollout/ep_len_mean", safe_mean([ep_info["l"] for ep_info in self.ep_info_buffer]))
+                self.logger.record("time/fps", fps)
+                self.logger.record("time/time_elapsed", int(time.time() - self.start_time), exclude="tensorboard")
+                self.logger.record("time/total_timesteps", self.num_timesteps, exclude="tensorboard")
+                self.logger.dump(step=self.num_timesteps)
+
+            self.train_with_fine_level()
 
         callback.on_training_end()
 

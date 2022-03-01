@@ -457,3 +457,32 @@ class PPO_ML(OnPolicyAlgorithmMultiLevel):
             eval_log_path=eval_log_path,
             reset_num_timesteps=reset_num_timesteps,
         )
+
+    def mlmc_analysis(
+        self,
+        total_timesteps: int,
+        callback: MaybeCallback = None,
+        log_interval: int = 1,
+        eval_env: Optional[GymEnv] = None,
+        eval_freq: int = -1,
+        n_eval_episodes: int = 5,
+        tb_log_name: str = "OnPolicyAlgorithmMultiLevel",
+        eval_log_path: Optional[str] = None,
+        reset_num_timesteps: bool = True,
+        n_expt: int = 100,
+        analysis_interval: int = 100
+    ):
+
+        return super(PPO_ML, self).mlmc_analysis(
+        total_timesteps: int,
+        callback=callback,
+        log_interval=log_interval,
+        eval_env=eval_env,
+        eval_freq=eval_freq,
+        n_eval_episodes=n_eval_episodes,
+        tb_log_name=tb_log_name,
+        eval_log_path=eval_log_path,
+        reset_num_timesteps=reset_num_timesteps,
+        n_expt=n_expt,
+        analysis_interval=analysis_interval
+        )
