@@ -42,6 +42,16 @@ class RolloutBufferMultiLevel(RolloutBuffer):
     ):
 
         super(RolloutBufferMultiLevel, self).__init__(buffer_size, observation_space, action_space, device, gae_lambda, gamma, n_envs=n_envs)
+        self.times = None
+        self.reset()
+
+    def reset(self) -> None:
+        self.times = np.zeros((self.buffer_size, self.n_envs), dtype=np.float32)
+        super(RolloutBuffer, self).reset()
+
+    def record_times(self, comp_times: np.ndarray) -> None:
+        'warning: usage only valid if this function is excuted right before `add` function'
+        self.times[self.pos] = comp_times
 
 
     def get_sync(self, sync_rollout_buffer, batch_size: Optional[int] = None) -> Generator[RolloutBufferSamples, None, None]:

@@ -352,6 +352,8 @@ class OnPolicyAlgorithmMultiLevel(BaseAlgorithm):
                 # Sample a new noise matrix
                 self.policy.reset_noise(env_dict[fine_level].num_envs)
 
+
+            before = time.time()
             with th.no_grad():
                 # Convert to pytorch tensor or to TensorDict
                 obs_tensor = obs_as_tensor(self._last_obs, self.device)
@@ -393,6 +395,9 @@ class OnPolicyAlgorithmMultiLevel(BaseAlgorithm):
                         terminal_value = self.policy.predict_values(terminal_obs)[0]
                     rewards[idx] += self.gamma * terminal_value
 
+            after = time.time()
+            comp_times = np.array([after-before]*self.n_envs)
+            analysis_rollout_buffer_dict[fine_level].record_times(comp_times)
             analysis_rollout_buffer_dict[fine_level].add(self._last_obs, actions, rewards, self._last_episode_starts, values, log_probs)
             self._last_obs = new_obs
             self._last_episode_starts = dones
@@ -401,6 +406,7 @@ class OnPolicyAlgorithmMultiLevel(BaseAlgorithm):
             last_values_dict = {}
 
             for level in range(1,fine_level):
+                before = time.time()
                 # collect rollout in synchronised rollout buffer
                 with th.no_grad():
                     # Convert to pytorch tensor or to TensorDict
@@ -435,6 +441,9 @@ class OnPolicyAlgorithmMultiLevel(BaseAlgorithm):
                             terminal_value = self.policy.predict_values(terminal_obs)[0]
                         rewards_[idx] += self.gamma * terminal_value
 
+                after = time.time()
+                comp_times = np.array([after-before]*self.n_envs)
+                analysis_rollout_buffer_dict[level].record_times(comp_times)
                 analysis_rollout_buffer_dict[level].add(obs_, actions_, rewards_, self._last_episode_starts, values_, log_probs_)
 
                 # env_dict[level].reset_from_dones(dones)
