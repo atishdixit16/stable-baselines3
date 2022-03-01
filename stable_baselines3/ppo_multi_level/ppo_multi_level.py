@@ -376,7 +376,7 @@ class PPO_ML(OnPolicyAlgorithmMultiLevel):
             approx_kl_divs = []
             # Do a complete pass on the rollout buffer
             # for rollout_data in self.rollout_buffer_array[0].get(self.batch_size_array[0]):
-            for rollout_data in self.analysis_rollout_buffer_dict[fine_level].get(self.n_steps_dict[fine_level]*self.n_envs):
+            for rollout_data in self.analysis_rollout_buffer_dict[fine_level]._get_samples( np.array( range( 1 , self.n_steps_dict[fine_level]*self.n_envs+1) ) ):
                 policy_batch_loss, value_batch_loss, entropy_batch_loss, ratio = self.compute_batch_losses(rollout_data, clip_range, clip_range_vf)
 
                 # Losses 
