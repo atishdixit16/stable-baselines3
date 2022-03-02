@@ -47,7 +47,7 @@ class RolloutBufferMultiLevel(RolloutBuffer):
 
     def reset(self) -> None:
         self.times = np.zeros((self.buffer_size, self.n_envs), dtype=np.float32)
-        super(RolloutBuffer, self).reset()
+        super(RolloutBufferMultiLevel, self).reset()
 
     def record_times(self, comp_times: np.ndarray) -> None:
         'warning: usage only valid if this function is excuted right before `add` function'
