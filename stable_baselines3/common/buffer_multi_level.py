@@ -53,6 +53,34 @@ class RolloutBufferMultiLevel(RolloutBuffer):
         'warning: usage only valid if this function is excuted right before `add` function'
         self.times[self.pos] = comp_times
 
+    def get_analysis_batch(self, batch_size: Optional[int] = None) -> Generator[RolloutBufferSamples, None, None]:
+        assert self.full, ""
+        indices = np.array( list( range(1,batch_size+1) ) )
+        # Prepare the data
+        if not self.generator_ready:
+
+            _tensor_names = [
+                "observations",
+                "actions",
+                "values",
+                "log_probs",
+                "advantages",
+                "returns",
+                "times",
+            ]
+
+            for tensor in _tensor_names:
+                self.__dict__[tensor] = self.swap_and_flatten(self.__dict__[tensor])
+            self.generator_ready = True
+
+        # Return everything, don't create minibatches
+        if batch_size is None:
+            batch_size = self.buffer_size * self.n_envs
+
+        start_idx = 0
+        while start_idx < batch_size:
+            yield self._get_samples(indices[start_idx : start_idx + batch_size])
+            start_idx += batch_size
 
     def get_sync(self, sync_rollout_buffer, batch_size: Optional[int] = None) -> Generator[RolloutBufferSamples, None, None]:
         assert self.full, ""

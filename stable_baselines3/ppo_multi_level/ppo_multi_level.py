@@ -2,6 +2,7 @@ import warnings
 from typing import Any, Dict, Optional, Type, Union
 
 import numpy as np
+from sqlalchemy import false
 import torch as th
 from gym import spaces
 from torch.nn import functional as F
@@ -376,7 +377,7 @@ class PPO_ML(OnPolicyAlgorithmMultiLevel):
             approx_kl_divs = []
             # Do a complete pass on the rollout buffer
             # for rollout_data in self.rollout_buffer_array[0].get(self.batch_size_array[0]):
-            for rollout_data in self.analysis_rollout_buffer_dict[fine_level]._get_samples( np.array( range( 1 , self.n_steps_dict[fine_level]*self.n_envs+1) ) ):
+            for rollout_data in self.analysis_rollout_buffer_dict[fine_level].get_analysis_batch( self.n_steps_dict[fine_level]*self.n_envs ):
                 policy_batch_loss, value_batch_loss, entropy_batch_loss, ratio = self.compute_batch_losses(rollout_data, clip_range, clip_range_vf)
 
                 # Losses 
@@ -432,6 +433,83 @@ class PPO_ML(OnPolicyAlgorithmMultiLevel):
         self.logger.record("train/clip_range", clip_range)
         if self.clip_range_vf is not None:
             self.logger.record("train/clip_range_vf", clip_range_vf)
+
+    def analysis(self) -> None:
+        """
+        Update policy using the currently gathered rollout buffer.
+        """
+        # Update optimizer learning rate
+        self._update_learning_rate(self.policy.optimizer)
+        # Compute current clip range
+        clip_range = self.clip_range(self._current_progress_remaining)
+        # Optional: clip range for the value function
+        if self.clip_range_vf is not None:
+            clip_range_vf = self.clip_range_vf(self._current_progress_remaining)
+        else:
+            clip_range_vf = None
+
+        # compute losses and computational time at each level
+        loss_dict = {}
+        comp_time = {}
+        for level in self.env_dict.keys():
+            for rollout in self.analysis_rollout_buffer_dict[level].get(None):
+                policy_loss, value_loss, entropy_loss, _ = self.compute_batch_losses(rollout, clip_range, clip_range_vf)
+                loss = policy_loss + self.ent_coef * entropy_loss + self.vf_coef * value_loss
+                loss_dict[level] = loss
+                comp_time[level] = rollout.times
+
+        # compute p terms of MLMC loss terms and their variances `v_l` and computational time `c_l`
+        p_terms = {}
+        v_l = {}
+        c_l = {}
+        for level in self.env_dict.keys():
+            if level==1:
+                p_terms[level] = loss_dict[level]
+                c_l[level] = np.mean(comp_time[level])
+            if level>1:
+                p_terms[level] = loss_dict[level] - loss_dict[level-1]
+                c_l[level] = np.mean(comp_time[level] + comp_time[level-1])
+            v_l[level] = np.var(p_terms[level])
+
+        # compute monte carlo estimates and its variance `epsilon squared`
+        fine_level = len(self.env_dict.keys())
+        loss_mc_array = []
+        for _ in range(self.num_expt):
+            indices = np.random.choice(loss_dict[fine_level].shape[0], self.num_expt, replace=False)
+            loss_mc_array.append( np.mean(loss_dict[fine_level][indices]) )
+        e2 = np.var(loss_mc_array)
+
+        # compute number of samples in each level `n_l`
+        sum_term = 0
+        for level in self.env_dict.keys():
+            sum_term += np.sqrt(v_l[level]*c_l[level])
+        lamda = (1/e2)*sum_term
+        n_l = {}
+        for level in self.env_dict.keys():
+            n_l[level] = lamda*np.sqrt(v_l[level]/c_l[level])
+
+        # compute multi-level monte carlo estimates and its variance
+        loss_mlmc_array = {}
+        for _ in range(self.num_expt):
+            for level in self.env_dict.keys():
+                indices = np.random.choice(loss_dict[fine_level].shape[0], n_l[level], replace=False)
+                loss = np.mean( p_terms[level][indices] )
+                loss_mlmc_array[level] = loss
+        e2_mlmc = np.var(loss_mlmc_array)
+
+        #compute average MC and MLC loss terms over all `num_expt`
+        loss_mc_average = np.mean(loss_mc_array)
+        loss_mlmc_average = {}
+        for level in self.env_dict.keys():
+            loss_mlmc_average[level] = np.mean(loss_mlmc_array[level])
+
+        return n_l, loss_mc_average, loss_mlmc_average, e2, e2_mlmc
+
+
+
+
+
+
 
     def learn(
         self,
