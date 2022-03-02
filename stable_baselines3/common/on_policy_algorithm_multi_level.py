@@ -591,6 +591,18 @@ class OnPolicyAlgorithmMultiLevel(BaseAlgorithm):
 
             self.train_with_fine_level()
 
+            if iteration % analysis_interval == 0:
+                n_l, loss_mc_average, loss_mlmc_average, e2, e2_mlmc = self.analysis()
+                print("----MLMC analysis report----")
+                print(f"iteration: {iteration}")
+                print(f"number of samples in each level: {n_l}")
+                print(f"mean monte carlo estimates: {loss_mc_average}")
+                print(f"mean multilevel monte carlo terms: {loss_mlmc_average}")
+                accuracy_loss = ( 1 - np.abs( sum(loss_mlmc_average.values()) - loss_mc_average ) / loss_mc_average )*100
+                print(f"accuracy of MLMC estimator: {int(accuracy_loss)} %")
+                accuracy_var = (1 - np.abs(e2-e2_mlmc) / e2)*100
+                print(f"accuracy of expected variance: {int(accuracy_var)} %")
+
         callback.on_training_end()
 
         return self
