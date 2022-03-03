@@ -245,8 +245,8 @@ class OnPolicyAlgorithmMultiLevel(BaseAlgorithm):
                         rewards[idx] += self.gamma * terminal_value
 
                 rollout_buffer_dict[level].add(self._last_obs, actions, rewards, self._last_episode_starts, values, log_probs)
-                self._last_obs = new_obs
-                self._last_episode_starts = dones
+                # self._last_obs = new_obs
+                # self._last_episode_starts = dones
 
                 if level > 1:
                     # collect rollout in synchronised rollout buffer
@@ -368,8 +368,6 @@ class OnPolicyAlgorithmMultiLevel(BaseAlgorithm):
 
             new_obs, rewards, dones, infos = env_dict[fine_level].step(clipped_actions)
 
-            self.num_timesteps += env_dict[fine_level].num_envs
-
             # Give access to local variables
             callback.update_locals(locals())
             if callback.on_step() is False:
@@ -377,6 +375,9 @@ class OnPolicyAlgorithmMultiLevel(BaseAlgorithm):
 
             self._update_info_buffer(infos)
             n_steps += 1
+
+            if n_steps <= self.n_steps_dict[fine_level]:
+                self.num_timesteps += env_dict[fine_level].num_envs
 
             if isinstance(self.action_space, gym.spaces.Discrete):
                 # Reshape in case of discrete action
@@ -399,8 +400,6 @@ class OnPolicyAlgorithmMultiLevel(BaseAlgorithm):
             comp_times = np.array([after-before]*self.n_envs)
             analysis_rollout_buffer_dict[fine_level].record_times(comp_times)
             analysis_rollout_buffer_dict[fine_level].add(self._last_obs, actions, rewards, self._last_episode_starts, values, log_probs)
-            self._last_obs = new_obs
-            self._last_episode_starts = dones
 
             last_obs_dict = {}
             last_values_dict = {}
@@ -564,7 +563,10 @@ class OnPolicyAlgorithmMultiLevel(BaseAlgorithm):
 
         while self.num_timesteps < total_timesteps:
 
+            iteration += 1
+
             if iteration % analysis_interval == 0:
+                print('collect rollouts for MLMC analysis...')
                 n_rollout_steps = self.n_steps_dict[fine_level]*self.num_expt
             else:
                 n_rollout_steps = self.n_steps_dict[fine_level]
@@ -574,7 +576,6 @@ class OnPolicyAlgorithmMultiLevel(BaseAlgorithm):
             if continue_training is False:
                 break
 
-            iteration += 1
             self._update_current_progress_remaining(self.num_timesteps, total_timesteps)
 
             # Display training infos
@@ -592,16 +593,27 @@ class OnPolicyAlgorithmMultiLevel(BaseAlgorithm):
             self.train_with_fine_level()
 
             if iteration % analysis_interval == 0:
-                n_l, loss_mc_average, loss_mlmc_average, e2, e2_mlmc = self.analysis()
-                print("----MLMC analysis report----")
-                print(f"iteration: {iteration}")
-                print(f"number of samples in each level: {n_l}")
-                print(f"mean monte carlo estimates: {loss_mc_average}")
-                print(f"mean multilevel monte carlo terms: {loss_mlmc_average}")
+                print(f'analysis of MLMC estimator for {self.num_expt} number of experimets...')
+                n_mc, n_l, c_mc, c_l, loss_mc_average, loss_mlmc_average, e2, v_l = self.analysis()
+                print("--------MLMC analysis report--------")
+                print(f"|   iteration: {iteration}\n")
+                print("|   monte carlo estimates: ")
+                print(f"|   mean MC estimator: {round(loss_mc_average, 4)}")
+                print(f"|   number of samples: {n_mc}")
+                print(f"|   variance : {round(e2,4)}\n")
+                print("|   multi level monte carlo estimates: ")
+                print(f"|   mean multilevel monte carlo estimate: {round( sum(loss_mlmc_average.values()) ,4)}")
+                print(f"|   number of samples in each level: {n_l}")
+                v_mlmc = 0
+                for level in v_l.keys():
+                    v_mlmc += v_l[level]/n_l[level]
+                print(f"|   variance : {round(v_mlmc,4)}\n")
+                
                 accuracy_loss = ( 1 - np.abs( sum(loss_mlmc_average.values()) - loss_mc_average ) / loss_mc_average )*100
-                print(f"accuracy of MLMC estimator: {int(accuracy_loss)} %")
-                accuracy_var = (1 - np.abs(e2-e2_mlmc) / e2)*100
-                print(f"accuracy of expected variance: {int(accuracy_var)} %")
+                print(f"|   accuracy of MLMC estimator: {int(accuracy_loss)}%")
+                accuracy_var = (1 - np.abs(e2-v_mlmc) / e2)*100
+                print(f"|   accuracy of MLMC variance: {int(accuracy_var)}%")
+                print("------------------------------------")
 
         callback.on_training_end()
 

@@ -1,4 +1,5 @@
-from typing import Generator, Optional, Union
+from os import times
+from typing import Generator, Optional, Union, NamedTuple
 
 import numpy as np
 import torch as th
@@ -6,6 +7,17 @@ from gym import spaces
 
 from stable_baselines3.common.type_aliases import RolloutBufferSamples
 from stable_baselines3.common.buffers import RolloutBuffer
+from stable_baselines3.common.vec_env import VecNormalize
+
+
+class AnalysisRolloutBufferSamples(NamedTuple):
+    observations: th.Tensor
+    actions: th.Tensor
+    old_values: th.Tensor
+    old_log_prob: th.Tensor
+    advantages: th.Tensor
+    returns: th.Tensor
+    times: th.Tensor
 
 class RolloutBufferMultiLevel(RolloutBuffer):
     """
@@ -54,8 +66,11 @@ class RolloutBufferMultiLevel(RolloutBuffer):
         self.times[self.pos] = comp_times
 
     def get_analysis_batch(self, batch_size: Optional[int] = None) -> Generator[RolloutBufferSamples, None, None]:
-        assert self.full, ""
-        indices = np.array( list( range(1,batch_size+1) ) )
+        # Return everything, don't create minibatches
+        if batch_size is None:
+            batch_size = self.buffer_size * self.n_envs
+
+        indices = np.array( list( range(batch_size) ) )
         # Prepare the data
         if not self.generator_ready:
 
@@ -73,14 +88,23 @@ class RolloutBufferMultiLevel(RolloutBuffer):
                 self.__dict__[tensor] = self.swap_and_flatten(self.__dict__[tensor])
             self.generator_ready = True
 
-        # Return everything, don't create minibatches
-        if batch_size is None:
-            batch_size = self.buffer_size * self.n_envs
-
         start_idx = 0
         while start_idx < batch_size:
-            yield self._get_samples(indices[start_idx : start_idx + batch_size])
+            yield self._get_analysis_samples(indices[start_idx : start_idx + batch_size])
             start_idx += batch_size
+
+
+    def _get_analysis_samples(self, batch_inds: np.ndarray, env: Optional[VecNormalize] = None) -> RolloutBufferSamples:
+        data = (
+            self.observations[batch_inds],
+            self.actions[batch_inds],
+            self.values[batch_inds].flatten(),
+            self.log_probs[batch_inds].flatten(),
+            self.advantages[batch_inds].flatten(),
+            self.returns[batch_inds].flatten(),
+            self.times[batch_inds].flatten(),
+        )
+        return AnalysisRolloutBufferSamples(*tuple(map(self.to_torch, data)))
 
     def get_sync(self, sync_rollout_buffer, batch_size: Optional[int] = None) -> Generator[RolloutBufferSamples, None, None]:
         assert self.full, ""
