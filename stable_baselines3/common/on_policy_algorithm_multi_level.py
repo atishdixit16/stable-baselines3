@@ -541,12 +541,18 @@ class OnPolicyAlgorithmMultiLevel(BaseAlgorithm):
         eval_log_path: Optional[str] = None,
         reset_num_timesteps: bool = True,
         n_expt: int = 100,
-        analysis_interval: int = 100
+        analysis_interval: int = 100,
+        analysis_batch_size: int=None,
     ) -> "OnPolicyAlgorithmMultiLevel":
 
         iteration = 0
 
         self._setup_analysis(n_expt)
+        
+        if analysis_batch_size is None:
+            self.analysis_batch_size = self.batch_size_dict.values()[-1]
+        else:
+            self.analysis_batch_size = analysis_batch_size
 
         total_timesteps, callback = self._setup_learn(
             total_timesteps, eval_env, callback, eval_freq, n_eval_episodes, eval_log_path, reset_num_timesteps, tb_log_name

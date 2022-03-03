@@ -101,5 +101,5 @@ def test_functional_ppo_ml_analysis(n_steps_dict, wrapper, generate_params):
     kwargs = dict(n_steps=n_steps_dict, batch_size=batch_size_dict, n_epochs=1, seed=1, device='cpu')
 
     model_ppo_ml = PPO_ML("MlpPolicy", env_dict, verbose=True, **kwargs)
-    model_ppo_ml.mlmc_analysis(total_timesteps=batch_size_dict[fine_level]*10, n_expt=300, analysis_interval=2)
+    model_ppo_ml.mlmc_analysis(total_timesteps=batch_size_dict[fine_level]*10, n_expt=300, analysis_interval=2, analysis_batch_size=300)
 
