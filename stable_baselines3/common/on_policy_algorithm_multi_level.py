@@ -603,6 +603,7 @@ class OnPolicyAlgorithmMultiLevel(BaseAlgorithm):
                 print(f"|   variance : {round(e2,4)}\n")
                 print("|   multi level monte carlo estimates: ")
                 print(f"|   mean multilevel monte carlo estimate: {round( sum(loss_mlmc_average.values()) ,4)}")
+                print(f"|   mean multilevel monte carlo estimate at each level: {loss_mlmc_average}")
                 print(f"|   number of samples in each level: {n_l}")
                 v_mlmc = 0
                 for level in v_l.keys():
