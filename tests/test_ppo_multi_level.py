@@ -76,8 +76,8 @@ from stable_baselines3.common.monitor import Monitor
 
 
 @pytest.mark.parametrize( "n_steps_dict, wrapper, generate_params", 
-                          [({1:30, 2:6, 3:3, 4:1}, DummyVecMultiLevelEnv, generate_env_case_1_params),] )
-                        #    ({1:20, 2:10, 3:5}, SubprocVecMultiLevelEnv, generate_env_case_2_params)] )
+                        #   [({1:30, 2:6, 3:3, 4:1}, DummyVecMultiLevelEnv, generate_env_case_1_params),
+                           [({1:4, 2:2, 3:1}, SubprocVecMultiLevelEnv, generate_env_case_2_params)] )
 def test_functional_ppo_ml_analysis(n_steps_dict, wrapper, generate_params):
     # print(get_envs)
 
