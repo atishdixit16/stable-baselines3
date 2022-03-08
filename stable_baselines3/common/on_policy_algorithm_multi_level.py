@@ -550,8 +550,10 @@ class OnPolicyAlgorithmMultiLevel(BaseAlgorithm):
 
         self._setup_analysis(n_expt)
         
+        fine_level = len(self.env_dict)
+
         if analysis_batch_size is None:
-            self.analysis_batch_size = self.batch_size_dict.values()[-1]
+            self.analysis_batch_size = self.batch_size_dict[fine_level]
         else:
             self.analysis_batch_size = analysis_batch_size
 
@@ -564,8 +566,6 @@ class OnPolicyAlgorithmMultiLevel(BaseAlgorithm):
             if level > 1:
                 _ = self.env_dict[level].reset()
         
-        fine_level = len(self.env_dict)
-
         callback.on_training_start(locals(), globals())
 
         while self.num_timesteps < total_timesteps:
