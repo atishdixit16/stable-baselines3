@@ -600,20 +600,26 @@ class OnPolicyAlgorithmMultiLevel(BaseAlgorithm):
 
             if iteration % analysis_interval == 0:
                 print(f'analysis of MLMC estimator for {self.num_expt} number of experimets...')
-                n_mc, n_l, c_mc, c_l, loss_mc_average, loss_mlmc_average, v_l_mc, v_l = self.analysis()
+                n_mc, n_l, c_l_mc, c_l, loss_mc_average, loss_mlmc_average, v_l_mc, v_l = self.analysis()
                 print("--------MLMC analysis report--------")
                 print(f"|   iteration: {iteration}\n")
                 print("|   monte carlo estimates: ")
                 print(f"|   mean MC estimator: {round(loss_mc_average, 4)}")
                 print(f"|   number of samples: {n_mc}")
+                print(f"|   computational cost: {c_l_mc[fine_level]}")
                 print(f"|   variance : {round(v_l_mc[fine_level],4)}\n")
                 print("|   multi level monte carlo estimates: ")
                 print(f"|   mean multilevel monte carlo estimate: {round( sum(loss_mlmc_average.values()) ,4)}")
                 print(f"|   mean multilevel monte carlo estimate at each level: {loss_mlmc_average}")
                 print(f"|   number of samples in each level: {n_l}")
+                e2 = v_l_mc[fine_level]
+                cost_sum = 0
                 v_mlmc = 0
                 for level in v_l.keys():
                     v_mlmc += v_l[level]/n_l[level]
+                    cost_sum += np.sqrt(v_l[level]*c_l[level])
+                c_mlmc = (1/e2)*cost_sum^2
+                print(f"|   computational cost: {c_mlmc}")
                 print(f"|   variance : {round(v_mlmc,4)}\n")
                 
                 accuracy_loss = ( 1 - np.abs( sum(loss_mlmc_average.values()) - loss_mc_average ) / loss_mc_average )*100

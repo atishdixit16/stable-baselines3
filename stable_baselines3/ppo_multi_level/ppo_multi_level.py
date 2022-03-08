@@ -487,7 +487,9 @@ class PPO_ML(OnPolicyAlgorithmMultiLevel):
         e2 = v_l_mc[fine_level]
 
         # compute computational cost for MC estimate
-        c_mc = np.mean(comp_time[fine_level])*self.num_expt
+        c_l_mc = {}
+        for level in self.env_dict.keys():
+            c_l_mc[level] = np.mean(comp_time[level])
 
         # compute number of samples in each level `n_l`
         sum_term = 0
@@ -516,7 +518,7 @@ class PPO_ML(OnPolicyAlgorithmMultiLevel):
         for level in self.env_dict.keys():
             loss_mlmc_average[level] = np.mean(loss_mlmc_array[level])
 
-        return  self.analysis_batch_size, n_l, c_mc, c_l, loss_mc_average, loss_mlmc_average, v_l_mc, v_l
+        return  self.analysis_batch_size, n_l, c_l_mc, c_l, loss_mc_average, loss_mlmc_average, v_l_mc, v_l
 
 
     def learn(
