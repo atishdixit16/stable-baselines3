@@ -513,10 +513,11 @@ class PPO_ML(OnPolicyAlgorithmMultiLevel):
             loss_mlmc_array[level] = np.array( loss_mlmc_array[level] )
 
         #compute average MC and MLC loss terms over all `num_expt`
-        loss_mc_average = np.mean(loss_mc_array[fine_level])
+        loss_mc_average = {}
         loss_mlmc_average = {}
         for level in self.env_dict.keys():
             loss_mlmc_average[level] = np.mean(loss_mlmc_array[level])
+            loss_mc_average[level] = np.mean(loss_mc_array[level])
 
         return  self.analysis_batch_size, n_l, c_l_mc, c_l, loss_mc_average, loss_mlmc_average, v_l_mc, v_l
 
