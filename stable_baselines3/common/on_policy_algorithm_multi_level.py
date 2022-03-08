@@ -600,13 +600,13 @@ class OnPolicyAlgorithmMultiLevel(BaseAlgorithm):
 
             if iteration % analysis_interval == 0:
                 print(f'analysis of MLMC estimator for {self.num_expt} number of experimets...')
-                n_mc, n_l, c_mc, c_l, loss_mc_average, loss_mlmc_average, e2, v_l = self.analysis()
+                n_mc, n_l, c_mc, c_l, loss_mc_average, loss_mlmc_average, v_l_mc, v_l = self.analysis()
                 print("--------MLMC analysis report--------")
                 print(f"|   iteration: {iteration}\n")
                 print("|   monte carlo estimates: ")
                 print(f"|   mean MC estimator: {round(loss_mc_average, 4)}")
                 print(f"|   number of samples: {n_mc}")
-                print(f"|   variance : {round(e2,4)}\n")
+                print(f"|   variance : {round(v_l_mc[fine_level],4)}\n")
                 print("|   multi level monte carlo estimates: ")
                 print(f"|   mean multilevel monte carlo estimate: {round( sum(loss_mlmc_average.values()) ,4)}")
                 print(f"|   mean multilevel monte carlo estimate at each level: {loss_mlmc_average}")

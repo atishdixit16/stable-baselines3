@@ -476,11 +476,15 @@ class PPO_ML(OnPolicyAlgorithmMultiLevel):
 
         # compute monte carlo estimates and its variance `epsilon squared`
         fine_level = len(self.env_dict.keys())
-        loss_mc_array = []
-        for _ in range(self.num_expt):
-            indices = np.random.choice(loss_dict[fine_level].shape[0], self.analysis_batch_size, replace=False)
-            loss_mc_array.append( np.mean(loss_dict[fine_level][indices]) )
-        e2 = np.var(loss_mc_array)
+        loss_mc_array = {}
+        v_l_mc = {}
+        for level in self.env_dict.keys():
+            loss_mc_array[level] = []
+            for _ in range(self.num_expt):
+                indices = np.random.choice(loss_dict[fine_level].shape[0], self.analysis_batch_size, replace=False)
+                loss_mc_array[level].append( np.mean(loss_dict[fine_level][indices]) )
+            v_l_mc[level] = np.var(loss_mc_array[level])
+        e2 = v_l_mc[fine_level]
 
         # compute computational cost for MC estimate
         c_mc = np.mean(comp_time[fine_level])*self.num_expt
@@ -507,12 +511,12 @@ class PPO_ML(OnPolicyAlgorithmMultiLevel):
             loss_mlmc_array[level] = np.array( loss_mlmc_array[level] )
 
         #compute average MC and MLC loss terms over all `num_expt`
-        loss_mc_average = np.mean(loss_mc_array)
+        loss_mc_average = np.mean(loss_mc_array[fine_level])
         loss_mlmc_average = {}
         for level in self.env_dict.keys():
             loss_mlmc_average[level] = np.mean(loss_mlmc_array[level])
 
-        return  self.analysis_batch_size, n_l, c_mc, c_l, loss_mc_average, loss_mlmc_average, e2, v_l
+        return  self.analysis_batch_size, n_l, c_mc, c_l, loss_mc_average, loss_mlmc_average, v_l_mc, v_l
 
 
     def learn(
