@@ -489,7 +489,7 @@ class PPO_ML(OnPolicyAlgorithmMultiLevel):
         # compute computational cost for MC estimate
         c_l_mc = {}
         for level in self.env_dict.keys():
-            c_l_mc[level] = np.mean(comp_time[level])
+            c_l_mc[level] = np.mean(comp_time[level])*self.num_expt
 
         # compute number of samples in each level `n_l`
         sum_term = 0
