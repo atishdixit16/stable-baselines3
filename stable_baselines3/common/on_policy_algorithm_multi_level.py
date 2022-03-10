@@ -141,12 +141,15 @@ class OnPolicyAlgorithmMultiLevel(BaseAlgorithm):
         self.policy = self.policy.to(self.device)
 
     def _setup_analysis(self, num_expt) -> None:
+
+        assert num_expt%self.n_envs ==0, 'please choose `num_expt` to be a factor of `n_envs`'
+
         self.num_expt = num_expt
         self.analysis_rollout_buffer_dict = {}
         buffer_cls = DictRolloutBuffer if isinstance(self.observation_space, gym.spaces.Dict) else RolloutBufferMultiLevel
-        fine_level = len(self.n_steps_dict)
+        buffer_size_per_actor = int( (self.analysis_batch_size*self.num_expt)/self.n_envs )
         for level in self.n_steps_dict.keys():
-            self.analysis_rollout_buffer_dict[level] = buffer_cls(self.n_steps_dict[fine_level]*self.num_expt,
+            self.analysis_rollout_buffer_dict[level] = buffer_cls(buffer_size_per_actor,
                                                          self.observation_space,
                                                          self.action_space,
                                                          device=self.device,
@@ -548,14 +551,14 @@ class OnPolicyAlgorithmMultiLevel(BaseAlgorithm):
         iteration = 0
         self.analysis_report = {}
 
-        self._setup_analysis(n_expt)
-        
         fine_level = len(self.env_dict)
-
         if analysis_batch_size is None:
             self.analysis_batch_size = self.batch_size_dict[fine_level]
         else:
             self.analysis_batch_size = analysis_batch_size
+
+        self._setup_analysis(n_expt)
+        
 
         total_timesteps, callback = self._setup_learn(
             total_timesteps, eval_env, callback, eval_freq, n_eval_episodes, eval_log_path, reset_num_timesteps, tb_log_name
