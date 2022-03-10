@@ -65,6 +65,20 @@ class RolloutBufferMultiLevel(RolloutBuffer):
         'warning: usage only valid if this function is excuted right before `add` function'
         self.times[self.pos] = comp_times
 
+    def swap_and_flatten_for_analysis(self, arr: np.ndarray) -> np.ndarray:
+        """
+        Swap and then flatten axes 0 (buffer_size) and 1 (n_envs)
+        to convert shape from [n_steps, n_envs, ...] (when ... is the shape of the features)
+        to [n_steps * n_envs, ...] (which maintain the order)
+
+        :param arr:
+        :return:
+        """
+        shape = arr.shape
+        if len(shape) < 3:
+            shape = shape + (1,)
+        return arr.swapaxes(0, 1).reshape(shape[0] * shape[1], *shape[2:], order='F')
+
     def get_analysis_batch(self, batch_size: Optional[int] = None) -> Generator[RolloutBufferSamples, None, None]:
         # Return everything, don't create minibatches
         if batch_size is None:
@@ -85,7 +99,7 @@ class RolloutBufferMultiLevel(RolloutBuffer):
             ]
 
             for tensor in _tensor_names:
-                self.__dict__[tensor] = self.swap_and_flatten(self.__dict__[tensor])
+                self.__dict__[tensor] = self.swap_and_flatten_for_analysis(self.__dict__[tensor])
             self.generator_ready = True
 
         start_idx = 0
