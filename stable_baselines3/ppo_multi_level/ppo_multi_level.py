@@ -456,8 +456,8 @@ class PPO_ML(OnPolicyAlgorithmMultiLevel):
                 with th.no_grad():
                     policy_loss, value_loss, entropy_loss, _ = self.compute_batch_losses(rollout, clip_range, clip_range_vf)
                 loss = policy_loss + self.ent_coef * entropy_loss + self.vf_coef * value_loss
-                loss_dict[level] = loss.detach().numpy()
-                comp_time[level] = rollout.times.detach().numpy()
+                loss_dict[level] = loss.cpu().detach().numpy()
+                comp_time[level] = rollout.times.cpu().detach().numpy()
 
 
         # compute p terms of MLMC loss terms and their variances `v_l` and computational time `c_l` (for each sample)

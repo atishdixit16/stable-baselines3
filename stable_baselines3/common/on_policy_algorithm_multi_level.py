@@ -634,7 +634,7 @@ class OnPolicyAlgorithmMultiLevel(BaseAlgorithm):
                 c_mlmc = (1/e2)*(cost_sum**2)
                 print(f"|\tcomputational cost: {c_mlmc}")
                 print(f"|\tvariance : {round(v_mlmc,4)}\n") 
-                accuracy_loss = ( 1 - np.abs( sum(loss_mlmc_average.values()) - loss_mc_average[fine_level] ) / loss_mc_average[fine_level] )*100
+                accuracy_loss = ( 1 - np.abs( ( sum(loss_mlmc_average.values()) - loss_mc_average[fine_level] ) / loss_mc_average[fine_level] ) )*100
                 print(f"|\taccuracy of MLMC estimator: {int(accuracy_loss)}%")
                 accuracy_var = (1 - np.abs(e2-v_mlmc) / e2)*100
                 comp_savings = 100*(c_l_mc[fine_level] - c_mlmc)/c_l_mc[fine_level]
