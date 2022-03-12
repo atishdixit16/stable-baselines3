@@ -460,7 +460,7 @@ class PPO_ML(OnPolicyAlgorithmMultiLevel):
                 comp_time[level] = rollout.times.detach().numpy()
 
 
-        # compute p terms of MLMC loss terms and their variances `v_l` and computational time `c_l`
+        # compute p terms of MLMC loss terms and their variances `v_l` and computational time `c_l` (for each sample)
         p_terms = {}
         v_l = {}
         c_l = {}
@@ -482,7 +482,7 @@ class PPO_ML(OnPolicyAlgorithmMultiLevel):
             loss_mc_array[level] = []
             for _ in range(self.num_expt):
                 indices = np.random.choice(loss_dict[fine_level].shape[0], self.analysis_batch_size, replace=False)
-                loss_mc_array[level].append( np.mean(loss_dict[fine_level][indices]) )
+                loss_mc_array[level].append( np.mean(loss_dict[level][indices]) )
             v_l_mc[level] = np.var(loss_mc_array[level])
         e2 = v_l_mc[fine_level]
 
@@ -512,7 +512,7 @@ class PPO_ML(OnPolicyAlgorithmMultiLevel):
         for level in self.env_dict.keys():
             loss_mlmc_array[level] = np.array( loss_mlmc_array[level] )
 
-        #compute average MC and MLC loss terms over all `num_expt`
+        #compute average MC and MLMC loss terms over all `num_expt`
         loss_mc_average = {}
         loss_mlmc_average = {}
         for level in self.env_dict.keys():

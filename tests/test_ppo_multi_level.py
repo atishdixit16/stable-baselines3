@@ -74,35 +74,35 @@ from stable_baselines3.common.monitor import Monitor
 #     print(return_array, '\n', return_ml_array)
 #     assert np.array_equal(return_array, return_ml_array), print(return_array, '\n', return_ml_array)
 
-@pytest.mark.parametrize( "n_steps_dict, wrapper, generate_params", 
-                          [({ 1:3, 2:1}, SubprocVecMultiLevelEnv, generate_env_case_1_params)] )
-def test_functional_ppo_ml_analysis_case_1(n_steps_dict, wrapper, generate_params):
-    # print(get_envs)
+# @pytest.mark.parametrize( "n_steps_dict, wrapper, generate_params", 
+#                           [({ 1:3, 2:1}, SubprocVecMultiLevelEnv, generate_env_case_1_params)] )
+# def test_functional_ppo_ml_analysis_case_1(n_steps_dict, wrapper, generate_params):
+#     # print(get_envs)
 
-    fine_level = len(n_steps_dict)
+#     fine_level = len(n_steps_dict)
 
-    level_dict = { 1:[15, 15], 2:[61,61]}
+#     level_dict = { 1:[15, 15], 2:[61,61]}
     
-    params_input = generate_params()
-    params_input.level_dict = level_dict
-    params_generator = RessimEnvParamGenerator(params_input)
+#     params_input = generate_params()
+#     params_input.level_dict = level_dict
+#     params_generator = RessimEnvParamGenerator(params_input)
 
-    env_dict = {}
-    batch_size_dict = {}
-    num_cpu = 4
-    for level in params_input.level_dict.keys():
-        params = params_generator.get_level_env_params(level)
-        env_dict[level] = make_vec_env( MultiLevelRessimEnv, 
-                                        n_envs=num_cpu, 
-                                        seed=level, 
-                                        env_kwargs= {"ressim_params":params, "level":level}, 
-                                        vec_env_cls=wrapper )
-        batch_size_dict[level] = n_steps_dict[level]*num_cpu
+#     env_dict = {}
+#     batch_size_dict = {}
+#     num_cpu = 4
+#     for level in params_input.level_dict.keys():
+#         params = params_generator.get_level_env_params(level)
+#         env_dict[level] = make_vec_env( MultiLevelRessimEnv, 
+#                                         n_envs=num_cpu, 
+#                                         seed=level, 
+#                                         env_kwargs= {"ressim_params":params, "level":level}, 
+#                                         vec_env_cls=wrapper )
+#         batch_size_dict[level] = n_steps_dict[level]*num_cpu
 
-    kwargs = dict(n_steps=n_steps_dict, batch_size=batch_size_dict, n_epochs=1, seed=1, device='cpu')
+#     kwargs = dict(n_steps=n_steps_dict, batch_size=batch_size_dict, n_epochs=1, seed=1, device='cpu')
 
-    model_ppo_ml = PPO_ML("MlpPolicy", env_dict, verbose=True, **kwargs)
-    model_ppo_ml.mlmc_analysis(total_timesteps=batch_size_dict[fine_level]*10, n_expt=300, analysis_interval=2, analysis_batch_size=300)
+#     model_ppo_ml = PPO_ML("MlpPolicy", env_dict, verbose=True, **kwargs)
+#     model_ppo_ml.mlmc_analysis(total_timesteps=batch_size_dict[fine_level]*10, n_expt=300, analysis_interval=2, analysis_batch_size=300)
 
 
 @pytest.mark.parametrize( "n_steps_dict, wrapper, generate_params", 
