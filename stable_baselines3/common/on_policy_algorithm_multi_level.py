@@ -577,7 +577,7 @@ class OnPolicyAlgorithmMultiLevel(BaseAlgorithm):
 
             if iteration % analysis_interval == 0:
                 print('collect rollouts for MLMC analysis...')
-                n_rollout_steps = self.n_steps_dict[fine_level]*self.num_expt
+                n_rollout_steps = int( (self.batch_size_dict[fine_level]*self.num_expt)/self.n_envs )
             else:
                 n_rollout_steps = self.n_steps_dict[fine_level]
 
