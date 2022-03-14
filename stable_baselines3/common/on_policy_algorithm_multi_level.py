@@ -619,8 +619,10 @@ class OnPolicyAlgorithmMultiLevel(BaseAlgorithm):
                 print("|\tmonte carlo estimates: ")
                 print(f"|\tmean MC estimator: {round(loss_mc_average[fine_level], 4)}")
                 print(f"|\tnumber of samples: {n_mc}")
-                print(f"|\tcomputational cost: {c_l_mc[fine_level]}")
-                print(f"|\tvariance : {round(v_l_mc[fine_level],4)}\n")
+                c_mc = c_l_mc[fine_level]*self.analysis_batch_size
+                print(f"|\tcomputational cost/level/sample: {c_l_mc}")
+                print(f"|\tvariance/level: {round(v_l_mc[fine_level],4)}\n")
+
                 print("|\tmulti level monte carlo estimates: ")
                 print(f"|\tmean multilevel monte carlo estimate: {round( sum(loss_mlmc_average.values()) ,4)}")
                 print(f"|\tmean multilevel monte carlo estimate at each level: {loss_mlmc_average}")
@@ -632,12 +634,13 @@ class OnPolicyAlgorithmMultiLevel(BaseAlgorithm):
                     v_mlmc += v_l[level]/n_l[level]
                     cost_sum += np.sqrt(v_l[level]*c_l[level])
                 c_mlmc = (1/e2)*(cost_sum**2)
-                print(f"|\tcomputational cost: {c_mlmc}")
-                print(f"|\tvariance : {round(v_mlmc,4)}\n") 
+                print(f"|\tcomputational cost of p-term/level/sample: {c_l}")
+                print(f"|\tvariance of p-term/level : {v_l}\n")
+
                 accuracy_loss = ( 1 - np.abs( ( sum(loss_mlmc_average.values()) - loss_mc_average[fine_level] ) / loss_mc_average[fine_level] ) )*100
                 print(f"|\taccuracy of MLMC estimator: {int(accuracy_loss)}%")
                 accuracy_var = (1 - np.abs(e2-v_mlmc) / e2)*100
-                comp_savings = 100*(c_l_mc[fine_level] - c_mlmc)/c_l_mc[fine_level]
+                comp_savings = 100*(c_mc - c_mlmc)/c_mc
                 print(f"|\tcomputational cost savings: {int(comp_savings)}%")
                 print(f"|\taccuracy of MLMC variance: {int(accuracy_var)}%")
                 print("------------------------------------")
