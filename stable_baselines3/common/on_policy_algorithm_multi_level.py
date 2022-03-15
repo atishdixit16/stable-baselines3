@@ -371,11 +371,6 @@ class OnPolicyAlgorithmMultiLevel(BaseAlgorithm):
 
             new_obs, rewards, dones, infos = env_dict[fine_level].step(clipped_actions)
 
-            # Give access to local variables
-            callback.update_locals(locals())
-            if callback.on_step() is False:
-                return False
-
             self._update_info_buffer(infos)
             n_steps += 1
 
@@ -403,6 +398,11 @@ class OnPolicyAlgorithmMultiLevel(BaseAlgorithm):
             comp_times = np.array([after-before]*self.n_envs)
             analysis_rollout_buffer_dict[fine_level].record_times(comp_times)
             analysis_rollout_buffer_dict[fine_level].add(self._last_obs, actions, rewards, self._last_episode_starts, values, log_probs)
+
+            # Give access to local variables
+            callback.update_locals(locals())
+            if callback.on_step() is False:
+                return False
 
             last_obs_dict = {}
             last_values_dict = {}
