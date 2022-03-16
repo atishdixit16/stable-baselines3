@@ -187,7 +187,7 @@ def configure_logger(
         or start from t=0 (``reset_num_timesteps=True``, the default).
     :return: The logger object
     """
-    save_path, format_strings = None, ["stdout"]
+    save_path, format_strings = None, None
 
     if tensorboard_log is not None and SummaryWriter is None:
         raise ImportError("Trying to log data to tensorboard but tensorboard is not installed.")
