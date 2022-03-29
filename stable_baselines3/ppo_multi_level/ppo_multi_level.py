@@ -287,6 +287,7 @@ class PPO_ML(OnPolicyAlgorithmMultiLevel):
                     if level > 1:
                         policy_batch_loss_, value_batch_loss_, entropy_batch_loss_, _ = self.compute_batch_losses(next(batch_generator[level]), clip_range, clip_range_vf)
                     else:
+                        _ = next(batch_generator[level]) # next run to rollout sync buffer at level
                         policy_batch_loss_, value_batch_loss_, entropy_batch_loss_ = 0,0,0
 
                     # averaging loss difference terms of MLMC estimator at current level
@@ -317,7 +318,6 @@ class PPO_ML(OnPolicyAlgorithmMultiLevel):
                         if self.verbose >= 1:
                             print(f"Early stopping at step {epoch} due to reaching max kl: {approx_kl_div:.2f}")
                         break
-
                     loss_l = policy_loss + self.ent_coef * entropy_loss + self.vf_coef * value_loss
                     loss_mlmc += loss_l
                 
