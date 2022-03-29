@@ -266,10 +266,7 @@ class PPO_ML(OnPolicyAlgorithmMultiLevel):
 
             batch_generator = {}
             for level in self.rollout_buffer_dict.keys():
-                if len(self.rollout_buffer_dict)==1: # special case: no need of sync rollout buffer when using a single level 
-                    batch_generator[level] = self.rollout_buffer_dict[level].get(self.batch_size_dict[level])
-                else:
-                    batch_generator[level] = self.rollout_buffer_dict[level].get_sync(self.sync_rollout_buffer_dict[level], self.batch_size_dict[level])
+                batch_generator[level] = self.rollout_buffer_dict[level].get_sync(self.sync_rollout_buffer_dict[level], self.batch_size_dict[level])
 
 
             for _ in range( int(np.ceil(self.n_steps_dict[1]*self.n_envs/self.batch_size_dict[1])) ):
