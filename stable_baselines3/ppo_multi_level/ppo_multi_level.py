@@ -558,6 +558,7 @@ class PPO_ML(OnPolicyAlgorithmMultiLevel):
         n_expt: int = 100,
         analysis_interval: int = 100,
         analysis_batch_size: int=None,
+        step_comp_time_dict: 'dict[int: float]'=None
     ):
 
         return super(PPO_ML, self).mlmc_analysis(
@@ -573,4 +574,5 @@ class PPO_ML(OnPolicyAlgorithmMultiLevel):
             n_expt=n_expt,
             analysis_interval=analysis_interval,
             analysis_batch_size=analysis_batch_size,
+            step_comp_time_dict=step_comp_time_dict
         )

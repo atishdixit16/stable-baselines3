@@ -362,6 +362,7 @@ class OnPolicyAlgorithmMultiLevel(BaseAlgorithm):
                 obs_tensor = obs_as_tensor(self._last_obs, self.device)
                 actions, values, log_probs = self.policy.forward(obs_tensor)
             actions = actions.cpu().numpy()
+            rollout_time = time.time() - before
 
             # Rescale and perform action
             clipped_actions = actions
@@ -394,8 +395,7 @@ class OnPolicyAlgorithmMultiLevel(BaseAlgorithm):
                         terminal_value = self.policy.predict_values(terminal_obs)[0]
                     rewards[idx] += self.gamma * terminal_value
 
-            after = time.time()
-            comp_times = np.array([after-before]*self.n_envs)
+            comp_times = np.array([rollout_time/self.n_envs + self.step_comp_time_dict[fine_level]]*self.n_envs)
             analysis_rollout_buffer_dict[fine_level].record_times(comp_times)
             analysis_rollout_buffer_dict[fine_level].add(self._last_obs, actions, rewards, self._last_episode_starts, values, log_probs)
 
@@ -417,6 +417,8 @@ class OnPolicyAlgorithmMultiLevel(BaseAlgorithm):
                     actions_ = actions
                     _, values_, _ = self.policy.forward(obs_tensor_)
                     log_probs_ = self.policy.get_distribution(obs_tensor_).log_prob(th.from_numpy(actions_).to(self.device))
+
+                rollout_time = time.time() - before
 
                 # Clip the actions to avoid out of bound error
                 if isinstance(self.action_space, gym.spaces.Box):
@@ -443,8 +445,7 @@ class OnPolicyAlgorithmMultiLevel(BaseAlgorithm):
                             terminal_value = self.policy.predict_values(terminal_obs)[0]
                         rewards_[idx] += self.gamma * terminal_value
 
-                after = time.time()
-                comp_times = np.array([after-before]*self.n_envs)
+                comp_times = np.array([rollout_time/self.n_envs + self.step_comp_time_dict[level]]*self.n_envs)
                 analysis_rollout_buffer_dict[level].record_times(comp_times)
                 analysis_rollout_buffer_dict[level].add(obs_, actions_, rewards_, self._last_episode_starts, values_, log_probs_)
 
@@ -546,10 +547,14 @@ class OnPolicyAlgorithmMultiLevel(BaseAlgorithm):
         n_expt: int = 100,
         analysis_interval: int = 100,
         analysis_batch_size: int=None,
+        step_comp_time_dict: 'dict[int: float]'=None
     ) -> "OnPolicyAlgorithmMultiLevel":
 
         iteration = 0
         self.analysis_report = {}
+
+        assert step_comp_time_dict is not None, 'provide a dictionary of simulation step time for each level'
+        self.step_comp_time_dict = step_comp_time_dict
 
         fine_level = len(self.env_dict)
         if analysis_batch_size is None:
