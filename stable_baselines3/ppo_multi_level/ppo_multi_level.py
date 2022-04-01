@@ -525,8 +525,6 @@ class PPO_ML(OnPolicyAlgorithmMultiLevel):
                     indices = np.random.choice(loss_dict[fine_level].shape[0], n_l[level], replace=False)
                     loss = np.mean( p_terms[level][indices] )
                     loss_mlmc_array[level].append(loss)
-            for level in levels:
-                loss_mlmc_array[level] = np.array( loss_mlmc_array[level] )
 
             #compute average MLMC loss terms over all `num_expt`
             loss_mlmc_average = {}
