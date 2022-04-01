@@ -124,9 +124,6 @@ class PPO_ML(OnPolicyAlgorithmMultiLevel):
         # because of the advantage normalization
         self.batch_size_dict = batch_size
 
-        # check multi-level variables
-        self._check_multi_level_variables()
-
         for level in self.env_dict.keys():
             assert (
                 self.batch_size_dict[level] > 1
@@ -155,6 +152,9 @@ class PPO_ML(OnPolicyAlgorithmMultiLevel):
         self.clip_range_vf = clip_range_vf
         self.target_kl = target_kl
 
+        # check multi-level variables
+        self._check_multi_level_variables()
+
         if _init_setup_model:
             self._setup_model()
 
@@ -172,6 +172,9 @@ class PPO_ML(OnPolicyAlgorithmMultiLevel):
         ratio = self.n_steps_dict[1]/ self.batch_size_dict[1]
         for t,m in zip(self.n_steps_dict.values(), self.batch_size_dict.values()):
             assert t/m==ratio, "ratio of n_steps to batch_size should be equal on all levels"
+
+        # make sure to set kl_target to None
+        assert self.target_kl==None, 'set target kl to None since the kl-based learning truncation is not considered in multi-level implementation'
 
     def _setup_model(self) -> None:
         super(PPO_ML, self)._setup_model()
