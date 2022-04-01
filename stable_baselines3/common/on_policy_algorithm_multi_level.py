@@ -632,11 +632,11 @@ class OnPolicyAlgorithmMultiLevel(BaseAlgorithm):
 
                 for key in mlmc_results.keys():
                     print(f"|\tMLMC {key} levels estimate : ")
-                    print(f"|\tmean estimate: { sum(mlmc_results[key]['est_loss'].values()) }")
-                    print(f"|\tmean estimate/level: {mlmc_results[key]['est_loss']}")
-                    print(f"|\tnumber of samples/level: {mlmc_results[key]['n_samples']}")
-                    print(f"|\tcomputational cost of p-term/sample/level: {mlmc_results[key]['comp_cost']}")
-                    print(f"|\tvariance of p-term/level : {mlmc_results[key]['var']}\n")
+                    print(f"|\t\tmean estimate: { sum(mlmc_results[key]['est_loss'].values()) }")
+                    print(f"|\t\tmean estimate/level: {mlmc_results[key]['est_loss']}")
+                    print(f"|\t\tnumber of samples/level: {mlmc_results[key]['n_samples']}")
+                    print(f"|\t\tcomputational cost of p-term/sample/level: {mlmc_results[key]['comp_cost']}")
+                    print(f"|\t\tvariance of p-term/level : {mlmc_results[key]['var']}\n")
 
                     e2 = mc_results['var'][fine_level]
                     cost_sum = 0
@@ -652,11 +652,11 @@ class OnPolicyAlgorithmMultiLevel(BaseAlgorithm):
 
                     c_mlmc = (1/e2)*(cost_sum**2)
                     accuracy_loss = ( 1 - np.abs( ( sum(mlmc_results[key]['est_loss'].values()) - mc_results['est_loss'][fine_level] ) / mc_results['est_loss'][fine_level] ) )*100
-                    print(f"|\taccuracy of MLMC estimate: {int(accuracy_loss)}%")
+                    print(f"|\t\taccuracy of MLMC estimate: {int(accuracy_loss)}%")
                     accuracy_var = (1 - np.abs(e2-v_mlmc) / e2)*100
                     comp_savings = 100*(c_mc - c_mlmc)/c_mc
-                    print(f"|\tcomputational savings: {int(comp_savings)}%")
-                    print(f"|\taccuracy of MLMC variance: {int(accuracy_var)}%\n")
+                    print(f"|\t\tcomputational savings: {int(comp_savings)}%")
+                    print(f"|\t\taccuracy of MLMC variance: {int(accuracy_var)}%\n")
     
                 print("------------------------------------")
 
