@@ -460,19 +460,6 @@ class PPO_ML(OnPolicyAlgorithmMultiLevel):
                 comp_time[level] = rollout.times.cpu().detach().numpy()
 
 
-        # compute p terms of MLMC loss terms and their variances `v_l` and computational time `c_l` (for each sample)
-        p_terms = {}
-        v_l = {}
-        c_l = {}
-        for level in self.env_dict.keys():
-            if level==1:
-                p_terms[level] = loss_dict[level]
-                c_l[level] = np.mean(comp_time[level])
-            if level>1:
-                p_terms[level] = loss_dict[level] - loss_dict[level-1]
-                c_l[level] = np.mean(comp_time[level] + comp_time[level-1])
-            v_l[level] = np.var(p_terms[level])
-
 
         # compute monte carlo estimates and its variance `epsilon squared`
         fine_level = len(self.env_dict.keys())
@@ -491,35 +478,70 @@ class PPO_ML(OnPolicyAlgorithmMultiLevel):
         for level in self.env_dict.keys():
             c_l_mc[level] = np.mean(comp_time[level])
 
-        # compute number of samples in each level `n_l`
-        sum_term = 0
-        for level in self.env_dict.keys():
-            sum_term += np.sqrt(v_l[level]*c_l[level])
-        lamda = (1/e2)*sum_term
-        n_l = {}
-        for level in self.env_dict.keys():
-            n_l[level] = int(lamda*np.sqrt(v_l[level]/c_l[level]))
-
-        # compute multi-level monte carlo estimates and its variance
-        loss_mlmc_array = {}
-        for level in self.env_dict.keys():
-            loss_mlmc_array[level] = []
-        for _ in range(self.num_expt):
-            for level in self.env_dict.keys():
-                indices = np.random.choice(loss_dict[fine_level].shape[0], n_l[level], replace=False)
-                loss = np.mean( p_terms[level][indices] )
-                loss_mlmc_array[level].append(loss)
-        for level in self.env_dict.keys():
-            loss_mlmc_array[level] = np.array( loss_mlmc_array[level] )
-
-        #compute average MC and MLMC loss terms over all `num_expt`
+        #compute average MC loss terms over all `num_expt`
         loss_mc_average = {}
-        loss_mlmc_average = {}
         for level in self.env_dict.keys():
-            loss_mlmc_average[level] = np.mean(loss_mlmc_array[level])
             loss_mc_average[level] = np.mean(loss_mc_array[level])
 
-        return  self.analysis_batch_size, n_l, c_l_mc, c_l, loss_mc_average, loss_mlmc_average, v_l_mc, v_l
+        mc_results = {"n_samples":self.analysis_batch_size, 
+                      "comp_cost":c_l_mc, 
+                      "var":v_l_mc, 
+                      "est_loss":loss_mc_average}
+
+        # compute multi levels analysis for 2,3,...,L-1 levels
+        mlmc_results = {}
+        for ind in range(fine_level-1):
+
+            levels = list(self.env_dict.keys())[ind:] 
+
+            # compute p terms of MLMC loss terms and their variances `v_l` and computational time `c_l` (for each sample)
+            p_terms = {}
+            v_l = {}
+            c_l = {}
+            for level in levels:
+                if level==(ind+1):
+                    p_terms[level] = loss_dict[level]
+                    c_l[level] = np.mean(comp_time[level])
+                if level>(ind+1):
+                    p_terms[level] = loss_dict[level] - loss_dict[level-1]
+                    c_l[level] = np.mean(comp_time[level] + comp_time[level-1])
+                v_l[level] = np.var(p_terms[level])
+    
+            # compute number of samples in each level `n_l`
+            sum_term = 0
+            for level in levels:
+                sum_term += np.sqrt(v_l[level]*c_l[level])
+            lamda = (1/e2)*sum_term
+            n_l = {}
+            for level in levels:
+                n_l[level] = int(lamda*np.sqrt(v_l[level]/c_l[level]))
+
+            # compute multi-level monte carlo estimates and its variance
+            loss_mlmc_array = {}
+            for level in levels:
+                loss_mlmc_array[level] = []
+            for _ in range(self.num_expt):
+                for level in levels:
+                    indices = np.random.choice(loss_dict[fine_level].shape[0], n_l[level], replace=False)
+                    loss = np.mean( p_terms[level][indices] )
+                    loss_mlmc_array[level].append(loss)
+            for level in levels:
+                loss_mlmc_array[level] = np.array( loss_mlmc_array[level] )
+
+            #compute average MLMC loss terms over all `num_expt`
+            loss_mlmc_average = {}
+            for level in levels:
+                loss_mlmc_average[level] = np.mean(loss_mlmc_array[level])
+
+            mlmc_results_levels = {"n_samples":n_l, 
+                                   "comp_cost":c_l, 
+                                   "var":v_l, 
+                                   "est_loss":loss_mlmc_average}
+
+            mlmc_results[len(levels)] = mlmc_results_levels
+
+
+        return  mc_results, mlmc_results
 
 
     def learn(

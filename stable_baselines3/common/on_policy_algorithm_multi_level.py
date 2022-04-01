@@ -615,45 +615,49 @@ class OnPolicyAlgorithmMultiLevel(BaseAlgorithm):
 
             if iteration % analysis_interval == 0:
                 print(f'analysis of MLMC estimator for {self.num_expt} number of experimets...')
-                n_mc, n_l, c_l_mc, c_l, loss_mc_average, loss_mlmc_average, v_l_mc, v_l = self.analysis()
-                analysis_data = {'n_mc':n_mc, 
-                                 'n_l':n_l, 
-                                 'c_l_mc':c_l_mc, 
-                                 'c_l_mlmc':c_l, 
-                                 'loss_mc_average':loss_mc_average, 
-                                 'loss_mlmc_average':loss_mlmc_average, 
-                                 'v_l_mc':v_l_mc, 
-                                 'v_l_mlmc':v_l}
+                mc_results, mlmc_results = self.analysis()
+                analysis_data = {'mc_results': mc_results, 
+                                 'mlmc_results': mlmc_results} 
 
                 print("--------MLMC analysis report--------")
                 print(f"|\titeration: {iteration}\n")
-                print("|\tmonte carlo estimates: ")
-                print(f"|\tmean MC estimator: {round(loss_mc_average[fine_level], 4)}")
-                print(f"|\tnumber of samples: {n_mc}")
-                c_mc = c_l_mc[fine_level]*self.analysis_batch_size
-                print(f"|\tcomputational cost/level/sample: {c_l_mc}")
-                print(f"|\tvariance/level: {round(v_l_mc[fine_level],4)}\n")
+                print(f"|\tmean estimate: {mc_results['est_loss'][fine_level]}")
+                print(f"|\tmean estimate/level: {mc_results['est_loss']}")
+                print(f"|\tnumber of samples/level: {mc_results['n_samples']}")
+                print(f"|\tcomputational cost/sample/level: {mc_results['comp_cost']}")
+                print(f"|\tvariance/level: {mc_results['var']}\n")
 
-                print("|\tmulti level monte carlo estimates: ")
-                print(f"|\tmean multilevel monte carlo estimate: {round( sum(loss_mlmc_average.values()) ,4)}")
-                print(f"|\tmean multilevel monte carlo estimate at each level: {loss_mlmc_average}")
-                print(f"|\tnumber of samples in each level: {n_l}")
-                e2 = v_l_mc[fine_level]
-                cost_sum = 0
-                v_mlmc = 0
-                for level in v_l.keys():
-                    v_mlmc += v_l[level]/n_l[level]
-                    cost_sum += np.sqrt(v_l[level]*c_l[level])
-                c_mlmc = (1/e2)*(cost_sum**2)
-                print(f"|\tcomputational cost of p-term/level/sample: {c_l}")
-                print(f"|\tvariance of p-term/level : {v_l}\n")
+                # total computational cost of MC estimator
+                c_mc = mc_results['comp_cost'][fine_level]*mc_results['n_samples']
 
-                accuracy_loss = ( 1 - np.abs( ( sum(loss_mlmc_average.values()) - loss_mc_average[fine_level] ) / loss_mc_average[fine_level] ) )*100
-                print(f"|\taccuracy of MLMC estimator: {int(accuracy_loss)}%")
-                accuracy_var = (1 - np.abs(e2-v_mlmc) / e2)*100
-                comp_savings = 100*(c_mc - c_mlmc)/c_mc
-                print(f"|\tcomputational cost savings: {int(comp_savings)}%")
-                print(f"|\taccuracy of MLMC variance: {int(accuracy_var)}%")
+                for key in mlmc_results.keys():
+                    print(f"|\tMLMC {key} levels estimate : ")
+                    print(f"|\tmean estimate: { sum(mlmc_results[key]['est_loss'].values()) }")
+                    print(f"|\tmean estimate/level: {mlmc_results[key]['est_loss']}")
+                    print(f"|\tnumber of samples/level: {mlmc_results[key]['n_samples']}")
+                    print(f"|\tcomputational cost of p-term/sample/level: {mlmc_results[key]['comp_cost']}")
+                    print(f"|\tvariance of p-term/level : {mlmc_results[key]['var']}\n")
+
+                    e2 = mc_results['var'][fine_level]
+                    cost_sum = 0
+                    v_mlmc = 0
+                    for level in mlmc_results[key]['var'].keys():
+
+                        v_l = mlmc_results[key]['var'][level]
+                        n_l = mlmc_results[key]['n_samples'][level]
+                        c_l = mlmc_results[key]['comp_cost'][level]
+
+                        v_mlmc += v_l/n_l
+                        cost_sum += np.sqrt(v_l*c_l)
+
+                    c_mlmc = (1/e2)*(cost_sum**2)
+                    accuracy_loss = ( 1 - np.abs( ( sum(mlmc_results[key]['est_loss'].values()) - mc_results['est_loss'][fine_level] ) / mc_results['est_loss'][fine_level] ) )*100
+                    print(f"|\taccuracy of MLMC estimate: {int(accuracy_loss)}%")
+                    accuracy_var = (1 - np.abs(e2-v_mlmc) / e2)*100
+                    comp_savings = 100*(c_mc - c_mlmc)/c_mc
+                    print(f"|\tcomputational savings: {int(comp_savings)}%")
+                    print(f"|\taccuracy of MLMC variance: {int(accuracy_var)}%\n")
+    
                 print("------------------------------------")
 
                 self.analysis_report[iteration] = analysis_data
