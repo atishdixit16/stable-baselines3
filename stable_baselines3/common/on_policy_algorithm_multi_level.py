@@ -5,6 +5,7 @@ from typing import Any, Dict, List, Optional, Tuple, Type, Union
 import gym
 import numpy as np
 import torch as th
+from tqdm import trange
 from stable_baselines3.common import distributions
 
 from stable_baselines3.common.base_class import BaseAlgorithm
@@ -340,13 +341,18 @@ class OnPolicyAlgorithmMultiLevel(BaseAlgorithm):
             analysis_rollout_buffer.reset()
 
         
-        n_steps = 0
         # Sample new weights for the state dependent exploration
         if self.use_sde:
             self.policy.reset_noise(env_dict[fine_level].num_envs)
         callback.on_rollout_start()
 
-        while n_steps < n_rollout_steps:
+        # To avoid progress bar when not doing mlmc analysis
+        if n_rollout_steps==self.n_steps_dict[fine_level]:
+            loop_till = range
+        else:
+            loop_till = trange
+
+        for n_steps in loop_till(n_rollout_steps):
 
             for level in range(1,fine_level):
                 env_dict[level].map_from(env_dict[fine_level])
@@ -373,7 +379,7 @@ class OnPolicyAlgorithmMultiLevel(BaseAlgorithm):
             new_obs, rewards, dones, infos = env_dict[fine_level].step(clipped_actions)
 
             self._update_info_buffer(infos)
-            n_steps += 1
+            # n_steps += 1
 
             if n_steps <= self.n_steps_dict[fine_level]:
                 self.num_timesteps += env_dict[fine_level].num_envs
