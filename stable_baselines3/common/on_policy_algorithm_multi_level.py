@@ -148,7 +148,7 @@ class OnPolicyAlgorithmMultiLevel(BaseAlgorithm):
         self.num_expt = num_expt
         self.analysis_rollout_buffer_dict = {}
         buffer_cls = DictRolloutBuffer if isinstance(self.observation_space, gym.spaces.Dict) else RolloutBufferMultiLevel
-        buffer_size_per_actor = int( (self.analysis_batch_size*self.num_expt)/self.n_envs )
+        buffer_size_per_actor = int( self.num_expt/self.n_envs )
         for level in self.n_steps_dict.keys():
             self.analysis_rollout_buffer_dict[level] = buffer_cls(buffer_size_per_actor,
                                                          self.observation_space,
@@ -552,7 +552,6 @@ class OnPolicyAlgorithmMultiLevel(BaseAlgorithm):
         reset_num_timesteps: bool = True,
         n_expt: int = 100,
         analysis_interval: int = 100,
-        analysis_batch_size: int=None,
         step_comp_time_dict: 'dict[int: float]'=None
     ) -> "OnPolicyAlgorithmMultiLevel":
 
@@ -563,10 +562,6 @@ class OnPolicyAlgorithmMultiLevel(BaseAlgorithm):
         self.step_comp_time_dict = step_comp_time_dict
 
         fine_level = len(self.env_dict)
-        if analysis_batch_size is None:
-            self.analysis_batch_size = self.batch_size_dict[fine_level]
-        else:
-            self.analysis_batch_size = analysis_batch_size
 
         self._setup_analysis(n_expt)
         
@@ -588,7 +583,7 @@ class OnPolicyAlgorithmMultiLevel(BaseAlgorithm):
 
             if iteration % analysis_interval == 0:
                 print('collect rollouts for MLMC analysis...')
-                n_rollout_steps = int( (self.analysis_batch_size*self.num_expt)/self.n_envs )
+                n_rollout_steps = int( self.num_expt/self.n_envs )
             else:
                 n_rollout_steps = self.n_steps_dict[fine_level]
 
