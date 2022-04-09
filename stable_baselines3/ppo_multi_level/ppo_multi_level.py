@@ -580,7 +580,6 @@ class PPO_ML(OnPolicyAlgorithmMultiLevel):
         reset_num_timesteps: bool = True,
         n_expt: int = 100,
         analysis_interval: int = 100,
-        analysis_batch_size: int=None,
         step_comp_time_dict: 'dict[int: float]'=None
     ):
 
@@ -596,6 +595,5 @@ class PPO_ML(OnPolicyAlgorithmMultiLevel):
             reset_num_timesteps=reset_num_timesteps,
             n_expt=n_expt,
             analysis_interval=analysis_interval,
-            analysis_batch_size=analysis_batch_size,
             step_comp_time_dict=step_comp_time_dict
         )
