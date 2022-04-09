@@ -510,7 +510,7 @@ class PPO_ML(OnPolicyAlgorithmMultiLevel):
         fine_level = len(self.env_dict.keys())
         Eps = [0.1, 0.05, 0.01, 0.005, 0.001]
         N0 = 100
-        analysis_log_file = self.analysis_log_path+' '+str(self.iteration)+'.txt'
+        analysis_log_file = self.analysis_log_path+'/iter_'+str(self.iteration)+'.txt'
         mlmc_test(mlmc_fn, self.num_expt, fine_level, N0, Eps, fine_level, fine_level, analysis_log_file)
         mlmc_plot(analysis_log_file, 3)
         plt.savefig(analysis_log_file.replace(".txt", ".eps"))
