@@ -552,12 +552,13 @@ class OnPolicyAlgorithmMultiLevel(BaseAlgorithm):
         reset_num_timesteps: bool = True,
         n_expt: int = 100,
         analysis_interval: int = 100,
+        analysis_log_path: str = None,
         step_comp_time_dict: 'dict[int: float]'=None
     ) -> "OnPolicyAlgorithmMultiLevel":
 
-        iteration = 0
+        self.iteration = 0
         self.analysis_report = {}
-
+        self.analysis_log_path = analysis_log_path
         assert step_comp_time_dict is not None, 'provide a dictionary of simulation step time for each level'
         self.step_comp_time_dict = step_comp_time_dict
 
@@ -579,9 +580,9 @@ class OnPolicyAlgorithmMultiLevel(BaseAlgorithm):
 
         while self.num_timesteps < total_timesteps:
 
-            iteration += 1
+            self.iteration += 1
 
-            if iteration % analysis_interval == 0:
+            if self.iteration % analysis_interval == 0:
                 print('collect rollouts for MLMC analysis...')
                 n_rollout_steps = int( self.num_expt/self.n_envs )
             else:
@@ -595,9 +596,9 @@ class OnPolicyAlgorithmMultiLevel(BaseAlgorithm):
             self._update_current_progress_remaining(self.num_timesteps, total_timesteps)
 
             # Display training infos
-            if log_interval is not None and iteration % log_interval == 0:
+            if log_interval is not None and self.iteration % log_interval == 0:
                 fps = int((self.num_timesteps - self._num_timesteps_at_start) / (time.time() - self.start_time))
-                self.logger.record("time/iterations", iteration, exclude="tensorboard")
+                self.logger.record("time/iterations", self.iteration, exclude="tensorboard")
                 if len(self.ep_info_buffer) > 0 and len(self.ep_info_buffer[0]) > 0:
                     self.logger.record("rollout/ep_rew_mean", safe_mean([ep_info["r"] for ep_info in self.ep_info_buffer]))
                     self.logger.record("rollout/ep_len_mean", safe_mean([ep_info["l"] for ep_info in self.ep_info_buffer]))
@@ -608,14 +609,14 @@ class OnPolicyAlgorithmMultiLevel(BaseAlgorithm):
 
             self.train_with_fine_level()
 
-            if iteration % analysis_interval == 0:
+            if self.iteration % analysis_interval == 0:
                 print(f'analysis of MLMC estimator for {self.num_expt} number of experimets...')
                 mc_results, mlmc_results = self.analysis()
                 analysis_data = {'mc_results': mc_results, 
                                  'mlmc_results': mlmc_results} 
 
                 print("--------MLMC analysis report--------")
-                print(f"|\titeration: {iteration}\n")
+                print(f"|\titeration: {self.iteration}\n")
                 print(f"|\tmean estimate: {mc_results['est_loss'][fine_level]}")
                 print(f"|\tmean estimate/level: {mc_results['est_loss']}")
                 print(f"|\tnumber of samples/level: {mc_results['n_samples']}")
@@ -655,7 +656,7 @@ class OnPolicyAlgorithmMultiLevel(BaseAlgorithm):
     
                 print("------------------------------------")
 
-                self.analysis_report[iteration] = analysis_data
+                self.analysis_report[self.iteration] = analysis_data
 
         callback.on_training_end()
 

@@ -1,5 +1,7 @@
+from tkinter import N
 import warnings
 from typing import Any, Dict, Optional, Type, Union
+from matplotlib import pyplot as plt
 
 import numpy as np
 from sqlalchemy import false
@@ -11,6 +13,7 @@ from stable_baselines3.common.on_policy_algorithm_multi_level import OnPolicyAlg
 from stable_baselines3.common.policies import ActorCriticPolicy
 from stable_baselines3.common.type_aliases import GymEnv, MaybeCallback, Schedule
 from stable_baselines3.common.utils import explained_variance, get_schedule_fn
+from stable_baselines3.common.pymlmc import mlmc_test, mlmc_plot
 
 
 
@@ -459,88 +462,59 @@ class PPO_ML(OnPolicyAlgorithmMultiLevel):
                 loss_dict[level] = loss.cpu().detach().numpy()
                 comp_time[level] = rollout.times.cpu().detach().numpy()
 
+        # define mlmc_fn for pymlmc analysis
+        def mlmc_fn(level,N):
+            '''
+            mlmc_fn: the user low-level routine for level l estimator. Its interface is
 
+            (sums, cost) = mlmc_fn(l, N, *args, **kwargs)
 
-        # compute monte carlo estimates and its variance `epsilon squared`
+            Inputs:  l: level
+                     N: number of samples
+                     *args, **kwargs: optional additional user variables
+
+            Outputs: sums[0]: sum(Y)
+                     sums[1]: sum(Y**2)
+                     sums[2]: sum(Y**3)
+                     sums[3]: sum(Y**4)
+                     sums[4]: sum(P_l)
+                     sums[5]: sum(P_l**2)
+                     where Y are iid samples with expected value
+                          E[P_0]            on level 0
+                          E[P_l - P_{l-1}]  on level l > 0
+                     cost: user-defined computational cost of N samples
+            '''
+
+            assert N <= loss_dict[fine_level].shape[0], 'number of samples `N` should be smaller than analysis buffer size'
+
+            indices = np.random.choice(loss_dict[fine_level].shape[0],N, replace=False)
+            p_l = loss_dict[level][indices]
+            y = p_l
+            cost = comp_time[level][indices]
+            if level>1:
+                p_l_back = loss_dict[level-1][indices]
+                y = y - p_l_back
+                cost = cost + comp_time[level-1][indices]
+            
+            sums = [0]*6
+            sums[0]= sum(y)
+            sums[1]= sum(y**2)
+            sums[2]= sum(y**3)
+            sums[3]= sum(y**4)
+            sums[4]= sum(p_l)
+            sums[5]= sum(p_l**2)
+            cost= sum(cost)
+
+            return sums, cost
+        
         fine_level = len(self.env_dict.keys())
-        loss_mc_array = {}
-        v_l_mc = {}
-        for level in self.env_dict.keys():
-            loss_mc_array[level] = []
-            for _ in range(self.num_expt):
-                indices = np.random.choice(loss_dict[fine_level].shape[0], self.analysis_batch_size, replace=False)
-                loss_mc_array[level].append( np.mean(loss_dict[level][indices]) )
-            v_l_mc[level] = np.var(loss_mc_array[level])
-        e2 = v_l_mc[fine_level]
-
-        # compute computational cost for MC estimate
-        c_l_mc = {}
-        for level in self.env_dict.keys():
-            c_l_mc[level] = np.mean(comp_time[level])
-
-        #compute average MC loss terms over all `num_expt`
-        loss_mc_average = {}
-        for level in self.env_dict.keys():
-            loss_mc_average[level] = np.mean(loss_mc_array[level])
-
-        mc_results = {"n_samples":self.analysis_batch_size, 
-                      "comp_cost":c_l_mc, 
-                      "var":v_l_mc, 
-                      "est_loss":loss_mc_average}
-
-        # compute multi levels analysis for 2,3,...,L-1 levels
-        mlmc_results = {}
-        for ind in range(fine_level-1):
-
-            levels = list(self.env_dict.keys())[ind:] 
-
-            # compute p terms of MLMC loss terms and their variances `v_l` and computational time `c_l` (for each sample)
-            p_terms = {}
-            v_l = {}
-            c_l = {}
-            for level in levels:
-                if level==(ind+1):
-                    p_terms[level] = loss_dict[level]
-                    c_l[level] = np.mean(comp_time[level])
-                if level>(ind+1):
-                    p_terms[level] = loss_dict[level] - loss_dict[level-1]
-                    c_l[level] = np.mean(comp_time[level] + comp_time[level-1])
-                v_l[level] = np.var(p_terms[level])
-    
-            # compute number of samples in each level `n_l`
-            sum_term = 0
-            for level in levels:
-                sum_term += np.sqrt(v_l[level]*c_l[level])
-            lamda = (1/e2)*sum_term
-            n_l = {}
-            for level in levels:
-                n_l[level] = int(lamda*np.sqrt(v_l[level]/c_l[level]))
-
-            # compute multi-level monte carlo estimates and its variance
-            loss_mlmc_array = {}
-            for level in levels:
-                loss_mlmc_array[level] = []
-            for _ in range(self.num_expt):
-                for level in levels:
-                    indices = np.random.choice(loss_dict[fine_level].shape[0], n_l[level], replace=False)
-                    loss = np.mean( p_terms[level][indices] )
-                    loss_mlmc_array[level].append(loss)
-
-            #compute average MLMC loss terms over all `num_expt`
-            loss_mlmc_average = {}
-            for level in levels:
-                loss_mlmc_average[level] = np.mean(loss_mlmc_array[level])
-
-            mlmc_results_levels = {"n_samples":n_l, 
-                                   "comp_cost":c_l, 
-                                   "var":v_l, 
-                                   "est_loss":loss_mlmc_average}
-
-            mlmc_results[len(levels)] = mlmc_results_levels
-
-
-        return  mc_results, mlmc_results
-
+        Eps = [0.1, 0.05, 0.01, 0.005, 0.001]
+        N0 = 100
+        analysis_log_file = self.analysis_log_path+' '+str(self.iteration)+'.txt'
+        mlmc_test(mlmc_fn, self.num_expt, fine_level, N0, Eps, fine_level, fine_level, analysis_log_file)
+        mlmc_plot(analysis_log_file, 3)
+        plt.savefig(analysis_log_file.replace(".txt", ".eps"))
+            
 
     def learn(
         self,
@@ -580,6 +554,7 @@ class PPO_ML(OnPolicyAlgorithmMultiLevel):
         reset_num_timesteps: bool = True,
         n_expt: int = 100,
         analysis_interval: int = 100,
+        analysis_log_path: str=None,
         step_comp_time_dict: 'dict[int: float]'=None
     ):
 
@@ -595,5 +570,6 @@ class PPO_ML(OnPolicyAlgorithmMultiLevel):
             reset_num_timesteps=reset_num_timesteps,
             n_expt=n_expt,
             analysis_interval=analysis_interval,
+            analysis_log_path=analysis_log_path,
             step_comp_time_dict=step_comp_time_dict
         )
