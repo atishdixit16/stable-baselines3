@@ -511,9 +511,10 @@ class PPO_ML(OnPolicyAlgorithmMultiLevel):
         Eps = [0.1, 0.05, 0.01]
         N0 = 100
         analysis_log_file = self.analysis_log_path+'/iter_'+str(self.iteration)+'.txt'
-        mlmc_test(mlmc_fn, self.num_expt, fine_level, N0, Eps, fine_level, fine_level, analysis_log_file)
-        mlmc_plot(analysis_log_file, 3)
-        plt.savefig(analysis_log_file.replace(".txt", ".eps"))
+        logfile = open(analysis_log_file, 'w')
+        mlmc_test(mlmc_fn, self.num_expt, fine_level, N0, Eps, fine_level, fine_level, logfile)
+        mlmc_plot(logfile, 3)
+        plt.savefig(logfile.replace(".txt", ".eps"))
             
 
     def learn(
