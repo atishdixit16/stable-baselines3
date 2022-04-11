@@ -78,10 +78,10 @@ from stable_baselines3.common.monitor import Monitor
 #         return_ml_array.append(evaluate_policy(model_ppo_ml, env_dict[1] ))
 #     assert np.array_equal(return_array, return_ml_array), print(return_array, '\n', return_ml_array)
 
-@pytest.mark.parametrize( "n_steps_dict, wrapper, generate_params, n_exp, batch_size, comp_time", 
-                          [({1:30, 2:6, 3:3, 4:1}, SubprocVecMultiLevelEnv, generate_env_case_1_params, 80, 50, {1:0.116,2:0.12,3:0.13,4:0.28}),
-                           ({1:4, 2:2, 3:1}, SubprocVecMultiLevelEnv, generate_env_case_2_params, 80, 50, {1:0.028,2:0.036,3:0.08})] )
-def test_functional_ppo_ml_analysis_case_2(n_steps_dict, wrapper, generate_params, n_exp, batch_size, comp_time):
+@pytest.mark.parametrize( "n_steps_dict, wrapper, generate_params, n_exp, tmp_path, comp_time", 
+                          [({1:30, 2:6, 3:3, 4:1}, SubprocVecMultiLevelEnv, generate_env_case_1_params, 1000, 'case_1', {1:0.116,2:0.12,3:0.13,4:0.28}),
+                           ({1:4, 2:2, 3:1}, SubprocVecMultiLevelEnv, generate_env_case_2_params, 1000, 'case_2', {1:0.028,2:0.036,3:0.08})] )
+def test_functional_ppo_ml_analysis_case_2(n_steps_dict, wrapper, generate_params, n_exp, tmp_path, comp_time):
     # print(get_envs)
 
     fine_level = len(n_steps_dict)
@@ -106,7 +106,7 @@ def test_functional_ppo_ml_analysis_case_2(n_steps_dict, wrapper, generate_param
     model_ppo_ml = PPO_ML("MlpPolicy", env_dict, verbose=True, **kwargs)
     model_ppo_ml.mlmc_analysis(total_timesteps=batch_size_dict[fine_level]*8, 
                                n_expt=n_exp, 
-                               analysis_interval=2, 
-                               analysis_batch_size=batch_size, 
+                               analysis_interval=2,
+                               analysis_log_path=tmp_path, 
                                step_comp_time_dict=comp_time)
-
+    os.system("rm -rf "+tmp_path)

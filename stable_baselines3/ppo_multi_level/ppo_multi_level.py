@@ -4,6 +4,7 @@ from typing import Any, Dict, Optional, Type, Union
 from matplotlib import pyplot as plt
 
 import numpy as np
+import os
 from sqlalchemy import false
 import torch as th
 from gym import spaces
@@ -463,7 +464,7 @@ class PPO_ML(OnPolicyAlgorithmMultiLevel):
                 comp_time[level] = rollout.times.cpu().detach().numpy()
 
         # define mlmc_fn for pymlmc analysis
-        def mlmc_fn(level,N):
+        def mlmc_fn(l,N):
             '''
             mlmc_fn: the user low-level routine for level l estimator. Its interface is
 
@@ -486,6 +487,7 @@ class PPO_ML(OnPolicyAlgorithmMultiLevel):
             '''
 
             assert N <= loss_dict[fine_level].shape[0], 'number of samples `N` should be smaller than analysis buffer size'
+            level=l+1
 
             indices = np.random.choice(loss_dict[fine_level].shape[0],N, replace=False)
             p_l = loss_dict[level][indices]
@@ -505,16 +507,18 @@ class PPO_ML(OnPolicyAlgorithmMultiLevel):
             sums[5]= sum(p_l**2)
             cost= sum(cost)
 
-            return sums, cost
+            return np.array(sums), cost
         
         fine_level = len(self.env_dict.keys())
-        Eps = [0.1, 0.05, 0.01]
+        Eps = [0.1, 0.05]
         N0 = 100
+        os.makedirs(self.analysis_log_path, exist_ok=True)
         analysis_log_file = self.analysis_log_path+'/iter_'+str(self.iteration)+'.txt'
         logfile = open(analysis_log_file, 'w')
-        mlmc_test(mlmc_fn, self.num_expt, fine_level, N0, Eps, fine_level, fine_level, logfile)
-        mlmc_plot(logfile, 3)
-        plt.savefig(logfile.replace(".txt", ".eps"))
+        mlmc_test(mlmc_fn, self.num_expt, fine_level-1, N0, Eps, fine_level-1, fine_level-1, logfile)
+        del logfile
+        mlmc_plot(analysis_log_file, 3)
+        plt.savefig(analysis_log_file.replace(".txt", ".pdf"))
             
 
     def learn(
