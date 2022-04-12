@@ -486,7 +486,7 @@ class PPO_ML(OnPolicyAlgorithmMultiLevel):
                      cost: user-defined computational cost of N samples
             '''
 
-            assert N <= loss_dict[fine_level].shape[0], 'number of samples `N` should be smaller than `n_expt`, try increasing `n_expt`'
+            assert N <= loss_dict[fine_level].shape[0], f'number of samples `N`({N}) should be smaller than `n_expt`, try increasing `n_expt`({loss_dict[fine_level].shape[0]})'
             level=l+1
 
             indices = np.random.choice(loss_dict[fine_level].shape[0],N, replace=False)
@@ -514,7 +514,7 @@ class PPO_ML(OnPolicyAlgorithmMultiLevel):
         os.makedirs(self.analysis_log_path, exist_ok=True)
         analysis_log_file = self.analysis_log_path+'/iter_'+str(self.iteration)+'.txt'
         logfile = open(analysis_log_file, 'w')
-        mlmc_test(mlmc_fn, self.num_expt, fine_level-1, N0, self.eps_array, fine_level-1, fine_level-1, logfile)
+        mlmc_test(mlmc_fn, self.num_expt, fine_level-1, self.n_init, self.eps_array, fine_level-1, fine_level-1, logfile)
         del logfile
         mlmc_plot(analysis_log_file, 3)
         plt.savefig(analysis_log_file.replace(".txt", ".pdf"))
@@ -558,6 +558,7 @@ class PPO_ML(OnPolicyAlgorithmMultiLevel):
         reset_num_timesteps: bool = True,
         n_expt: int = 100,
         eps_array: 'list[float]' = [0.1, 0.05],
+        n_init: int=50,
         analysis_interval: int = 100,
         analysis_log_path: str=None,
         step_comp_time_dict: 'dict[int: float]'=None
@@ -575,6 +576,7 @@ class PPO_ML(OnPolicyAlgorithmMultiLevel):
             reset_num_timesteps=reset_num_timesteps,
             n_expt=n_expt,
             eps_array=eps_array,
+            n_init=n_init,
             analysis_interval=analysis_interval,
             analysis_log_path=analysis_log_path,
             step_comp_time_dict=step_comp_time_dict

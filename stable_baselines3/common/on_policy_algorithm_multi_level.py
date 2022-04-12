@@ -552,6 +552,7 @@ class OnPolicyAlgorithmMultiLevel(BaseAlgorithm):
         reset_num_timesteps: bool = True,
         n_expt: int = 100,
         eps_array: 'list[float]' = [0.1, 0.05],
+        n_init: int=50,
         analysis_interval: int = 100,
         analysis_log_path: str = None,
         step_comp_time_dict: 'dict[int: float]'=None
@@ -561,6 +562,7 @@ class OnPolicyAlgorithmMultiLevel(BaseAlgorithm):
         self.analysis_report = {}
         self.analysis_log_path = analysis_log_path
         self.eps_array = eps_array
+        self.n_init = n_init
         assert step_comp_time_dict is not None, 'provide a dictionary of simulation step time for each level'
         self.step_comp_time_dict = step_comp_time_dict
 
