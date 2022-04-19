@@ -615,7 +615,10 @@ class OnPolicyAlgorithmMultiLevel(BaseAlgorithm):
 
             if self.iteration % analysis_interval == 0:
                 print(f'analysis of MLMC estimator for {self.num_expt} number of experimets...')
-                self.analysis()
+                mc_results, ml_results = self.analysis()
+                self.analysis_report['iter'] = self.iteration
+                self.analysis_report['mc_results'] = mc_results
+                self.analysis_report['ml_results'] = ml_results
 
         callback.on_training_end()
 

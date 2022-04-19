@@ -136,6 +136,8 @@ def mlmc_test(mlmc_fn, N, L, N0, Eps, Lmin, Lmax, logfile, *args, **kwargs):
     beta  = max(beta, 0.5)
     theta = 0.25
 
+    P_ml, N_l, C_l, C = [],[],[],[]
+
     for eps in Eps:
        (P, Nl, Cl) = mlmc(Lmin, Lmax, N0, eps, mlmc_fn, alpha, beta, gamma, *args, **kwargs)
        l = len(Nl) - 1
@@ -146,7 +148,14 @@ def mlmc_test(mlmc_fn, N, L, N0, Eps, Lmin, Lmax, logfile, *args, **kwargs):
        write(logfile, " ".join(["%9d" % n for n in Nl]))
        write(logfile, "\n")
 
+       P_ml.append(P)
+       N_l.append(Nl)
+       C_l.append(Cl)
+       C.append(std_cost)
+
     write(logfile, "\n")
+
+    return Eps, P_ml, N_l, C_l, C
 
 def write(logfile, msg):
     """

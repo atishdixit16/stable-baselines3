@@ -463,6 +463,8 @@ class PPO_ML(OnPolicyAlgorithmMultiLevel):
                 loss_dict[level] = loss.cpu().detach().numpy()
                 comp_time[level] = rollout.times.cpu().detach().numpy()
 
+        fine_level = len(self.env_dict.keys())
+
         # define mlmc_fn for pymlmc analysis
         def mlmc_fn(l,N):
             '''
@@ -486,6 +488,7 @@ class PPO_ML(OnPolicyAlgorithmMultiLevel):
                      cost: user-defined computational cost of N samples
             '''
 
+            fine_level = len(self.env_dict.keys())
             assert N <= loss_dict[fine_level].shape[0], f'number of samples `N`({N}) should be smaller than `n_expt`, try increasing `n_expt`({loss_dict[fine_level].shape[0]})'
             level=l+1
 
@@ -509,15 +512,25 @@ class PPO_ML(OnPolicyAlgorithmMultiLevel):
 
             return np.array(sums), cost
         
-        fine_level = len(self.env_dict.keys())
         N0 = 100
         os.makedirs(self.analysis_log_path, exist_ok=True)
         analysis_log_file = self.analysis_log_path+'/iter_'+str(self.iteration)+'.txt'
         logfile = open(analysis_log_file, 'w')
-        mlmc_test(mlmc_fn, self.num_expt, fine_level-1, self.n_init, self.eps_array, fine_level-1, fine_level-1, logfile)
+        Eps, P_ml, N_l, C_l, C = mlmc_test(mlmc_fn, self.num_expt, fine_level-1, self.n_init, self.eps_array, fine_level-1, fine_level-1, logfile)
+        # compute mc estimate
+        C_mc = np.mean(comp_time[fine_level])
+        N_mc = int ( C / C_mc )
+        mc_indices = np.random.choice(loss_dict[fine_level].shape[0],N_mc, replace=False)
+        P_mc = np.mean(loss_dict[fine_level][mc_indices])
+
         del logfile
         mlmc_plot(analysis_log_file, 3)
         plt.savefig(analysis_log_file.replace(".txt", ".pdf"))
+
+        mc_results = {'eps':Eps, 'P_mc':P_mc, 'N_mc':N_mc, 'C_mc':C_mc}
+        ml_results = {'eps':Eps, 'P_mc':P_ml, 'N_mc':N_l, 'C_mc':C_l}
+
+        return mc_results, ml_results
             
 
     def learn(
