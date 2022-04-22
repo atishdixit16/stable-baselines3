@@ -381,7 +381,7 @@ class OnPolicyAlgorithmMultiLevel(BaseAlgorithm):
             self._update_info_buffer(infos)
             # n_steps += 1
 
-            if n_steps <= self.n_steps_dict[fine_level]:
+            if n_steps < self.n_steps_dict[fine_level]:
                 self.num_timesteps += env_dict[fine_level].num_envs
 
             if isinstance(self.action_space, gym.spaces.Discrete):
@@ -504,8 +504,8 @@ class OnPolicyAlgorithmMultiLevel(BaseAlgorithm):
             total_timesteps, eval_env, callback, eval_freq, n_eval_episodes, eval_log_path, reset_num_timesteps, tb_log_name
         )
 
-        # reset all envs in env_dict
-        for level in self.env_dict.keys():
+        # reset all but last envs in env_dict since final env reset is done in `_setup_learn`
+        for level in list(self.env_dict.keys())[:-1]:
             _ = self.env_dict[level].reset()
 
         callback.on_training_start(locals(), globals())
@@ -574,8 +574,8 @@ class OnPolicyAlgorithmMultiLevel(BaseAlgorithm):
             total_timesteps, eval_env, callback, eval_freq, n_eval_episodes, eval_log_path, reset_num_timesteps, tb_log_name
         )
 
-        # reset all envs in env_dict
-        for level in self.env_dict.keys():
+        # reset all but last envs in env_dict since final env reset is done in `_setup_learn`
+        for level in list(self.env_dict.keys())[:-1]:
             _ = self.env_dict[level].reset()
         
         callback.on_training_start(locals(), globals())

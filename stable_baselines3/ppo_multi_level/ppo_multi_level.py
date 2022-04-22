@@ -522,7 +522,7 @@ class PPO_ML(OnPolicyAlgorithmMultiLevel):
         N_mc = np.floor( C / C_mc )
         P_mc = []
         for n in N_mc:
-            mc_indices = np.random.choice(loss_dict[fine_level].shape[0],n, replace=False)
+            mc_indices = np.random.choice(loss_dict[fine_level].shape[0],int(n), replace=False)
             P_mc.append( np.mean(loss_dict[fine_level][mc_indices]) )
 
         del logfile
