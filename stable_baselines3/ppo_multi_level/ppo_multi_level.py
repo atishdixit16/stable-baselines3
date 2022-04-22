@@ -519,9 +519,11 @@ class PPO_ML(OnPolicyAlgorithmMultiLevel):
         Eps, P_ml, N_l, C_l, C = mlmc_test(mlmc_fn, self.num_expt, fine_level-1, self.n_init, self.eps_array, fine_level-1, fine_level-1, logfile)
         # compute mc estimate
         C_mc = np.mean(comp_time[fine_level])
-        N_mc = int ( C / C_mc )
-        mc_indices = np.random.choice(loss_dict[fine_level].shape[0],N_mc, replace=False)
-        P_mc = np.mean(loss_dict[fine_level][mc_indices])
+        N_mc = np.floor( C / C_mc )
+        P_mc = []
+        for n in N_mc:
+            mc_indices = np.random.choice(loss_dict[fine_level].shape[0],n, replace=False)
+            P_mc.append( np.mean(loss_dict[fine_level][mc_indices]) )
 
         del logfile
         mlmc_plot(analysis_log_file, 3)
