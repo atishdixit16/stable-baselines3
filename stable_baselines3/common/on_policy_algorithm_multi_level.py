@@ -81,7 +81,7 @@ class OnPolicyAlgorithmMultiLevel(BaseAlgorithm):
 
         super(OnPolicyAlgorithmMultiLevel, self).__init__(
             policy=policy,
-            env=env[1],
+            env=env[list(env.keys())[-1]],
             policy_base=policy_base,
             learning_rate=learning_rate,
             policy_kwargs=policy_kwargs,
@@ -504,10 +504,9 @@ class OnPolicyAlgorithmMultiLevel(BaseAlgorithm):
             total_timesteps, eval_env, callback, eval_freq, n_eval_episodes, eval_log_path, reset_num_timesteps, tb_log_name
         )
 
-        # reset rest of the environemnts (besides level 1, which is done in `_setup_learn`) in the env_dict
+        # reset all envs in env_dict
         for level in self.env_dict.keys():
-            if level > 1:
-                _ = self.env_dict[level].reset()
+            _ = self.env_dict[level].reset()
 
         callback.on_training_start(locals(), globals())
 
@@ -575,10 +574,9 @@ class OnPolicyAlgorithmMultiLevel(BaseAlgorithm):
             total_timesteps, eval_env, callback, eval_freq, n_eval_episodes, eval_log_path, reset_num_timesteps, tb_log_name
         )
 
-        # reset rest of the environemnts (besides level 1, which is done in `_setup_learn`) in the env_dict
+        # reset all envs in env_dict
         for level in self.env_dict.keys():
-            if level > 1:
-                _ = self.env_dict[level].reset()
+            _ = self.env_dict[level].reset()
         
         callback.on_training_start(locals(), globals())
 
