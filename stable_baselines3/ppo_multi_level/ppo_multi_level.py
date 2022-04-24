@@ -12,9 +12,10 @@ from torch.nn import functional as F
 
 from stable_baselines3.common.on_policy_algorithm_multi_level import OnPolicyAlgorithmMultiLevel
 from stable_baselines3.common.policies import ActorCriticPolicy
+# from stable_baselines3.common.pymlmc import mlmc
 from stable_baselines3.common.type_aliases import GymEnv, MaybeCallback, Schedule
 from stable_baselines3.common.utils import explained_variance, get_schedule_fn
-from stable_baselines3.common.pymlmc import mlmc_test, mlmc_plot
+import stable_baselines3.common.pymlmc.mlmc as mlmc
 
 
 
@@ -511,26 +512,49 @@ class PPO_ML(OnPolicyAlgorithmMultiLevel):
             cost= sum(cost)
 
             return np.array(sums), cost
-        
-        N0 = 100
-        os.makedirs(self.analysis_log_path, exist_ok=True)
-        analysis_log_file = self.analysis_log_path+'/iter_'+str(self.iteration)+'.txt'
-        logfile = open(analysis_log_file, 'w')
-        Eps, P_ml, N_l, C_l, C = mlmc_test(mlmc_fn, self.num_expt, fine_level-1, self.n_init, self.eps_array, fine_level-1, fine_level-1, logfile)
+
+
+        (sums, cst) = mlmc_fn(fine_level-1, self.num_expt)
+        cst = cst/self.num_expt
+        sums = sums/self.num_expt
+        var_L = max(sums[5]-sums[4]**2, 1.0e-10) # fix for cases with var = 0
+
+        P_ml, N_l, C_l, C = [],[],[],[]
+        theta=0.25
+
+        for eps in self.eps_array:
+           (P, Nl, Cl) = mlmc(Lmin=fine_level-1, Lmax=fine_level-1, N0=self.n_init, eps=eps, mlmc_fn=mlmc_fn, alpha_0=0, beta_0=0, gamma_0=0)
+           l = len(Nl) - 1
+           mlmc_cost = np.dot(Nl,Cl)
+           std_cost  = var_L*Cl[min(len(Cl)-1,l)]/((1.0 - theta)*eps**2)
+
+           P_ml.append(P)
+           N_l.append(Nl)
+           C_l.append(Cl)
+           C.append(std_cost)
+
+        # return Eps, P_ml, N_l, C_l, C
+
+        # N0 = 100
+        # os.makedirs(self.analysis_log_path, exist_ok=True)
+        # analysis_log_file = self.analysis_log_path+'/iter_'+str(self.iteration)+'.txt'
+        # logfile = open(analysis_log_file, 'w')
+        # Eps, P_ml, N_l, C_l, C = mlmc_test(mlmc_fn, self.num_expt, fine_level-1, self.n_init, self.eps_array, fine_level-1, fine_level-1, logfile)
+
         # compute mc estimate
         C_mc = np.mean(comp_time[fine_level])
-        N_mc = np.floor( C / C_mc )
+        N_mc = np.ceil( C / C_mc )
         P_mc = []
         for n in N_mc:
             mc_indices = np.random.choice(loss_dict[fine_level].shape[0],int(n), replace=False)
             P_mc.append( np.mean(loss_dict[fine_level][mc_indices]) )
 
-        del logfile
-        mlmc_plot(analysis_log_file, 3)
-        plt.savefig(analysis_log_file.replace(".txt", ".pdf"))
+        # del logfile
+        # mlmc_plot(analysis_log_file, 3)
+        # plt.savefig(analysis_log_file.replace(".txt", ".pdf"))
 
-        mc_results = {'eps':Eps, 'P_mc':P_mc, 'N_mc':N_mc, 'C_mc':C_mc}
-        ml_results = {'eps':Eps, 'P_mc':P_ml, 'N_mc':N_l, 'C_mc':C_l}
+        mc_results = {'eps_mc':self.eps_array, 'P_mc':P_mc, 'N_mc':N_mc, 'C_mc':C_mc}
+        ml_results = {'eps_ml':self.eps_array, 'P_ml':P_ml, 'N_ml':N_l, 'C_ml':C_l}
 
         return mc_results, ml_results
             
@@ -575,7 +599,6 @@ class PPO_ML(OnPolicyAlgorithmMultiLevel):
         eps_array: 'list[float]' = [0.1, 0.05],
         n_init: int=50,
         analysis_interval: int = 100,
-        analysis_log_path: str=None,
         step_comp_time_dict: 'dict[int: float]'=None
     ):
 
@@ -593,6 +616,5 @@ class PPO_ML(OnPolicyAlgorithmMultiLevel):
             eps_array=eps_array,
             n_init=n_init,
             analysis_interval=analysis_interval,
-            analysis_log_path=analysis_log_path,
             step_comp_time_dict=step_comp_time_dict
         )

@@ -9,3 +9,4 @@ from .mlmc_plot_100 import mlmc_plot_100
 from .mlmc_plot import mlmc_plot
 from .mlmc_test import mlmc_test
 from .mlmc_fn import mlmc_fn
+from .mlmc import mlmc

@@ -553,13 +553,11 @@ class OnPolicyAlgorithmMultiLevel(BaseAlgorithm):
         eps_array: 'list[float]' = [0.1, 0.05],
         n_init: int=50,
         analysis_interval: int = 100,
-        analysis_log_path: str = None,
         step_comp_time_dict: 'dict[int: float]'=None
     ) -> "OnPolicyAlgorithmMultiLevel":
 
         self.iteration = 0
         self.analysis_report = {}
-        self.analysis_log_path = analysis_log_path
         self.eps_array = eps_array
         self.n_init = n_init
         assert step_comp_time_dict is not None, 'provide a dictionary of simulation step time for each level'
@@ -618,9 +616,15 @@ class OnPolicyAlgorithmMultiLevel(BaseAlgorithm):
             if self.iteration % analysis_interval == 0:
                 print(f'analysis of MLMC estimator for {self.num_expt} number of experimets...')
                 mc_results, ml_results = self.analysis()
-                self.analysis_report['iter'] = self.iteration
-                self.analysis_report['mc_results'] = mc_results
-                self.analysis_report['ml_results'] = ml_results
+                self.analysis_report['iter '+str(int(self.iteration))] = {}
+                self.analysis_report['iter '+str(int(self.iteration))]['mc_results'] = mc_results
+                self.analysis_report['iter '+str(int(self.iteration))]['ml_results'] = ml_results
+
+                for key in mc_results.keys():
+                    self.logger.record("mc_results/"+key, mc_results[key], exclude="tensorboard")
+
+                for key in ml_results.keys():
+                    self.logger.record("mlmc_results/"+key, ml_results[key], exclude="tensorboard")
 
         callback.on_training_end()
 
