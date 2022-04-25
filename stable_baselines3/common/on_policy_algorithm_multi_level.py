@@ -413,51 +413,52 @@ class OnPolicyAlgorithmMultiLevel(BaseAlgorithm):
             last_obs_dict = {}
             last_values_dict = {}
 
-            for level in range(1,fine_level):
-                before = time.time()
-                # collect rollout in synchronised rollout buffer
-                with th.no_grad():
-                    # Convert to pytorch tensor or to TensorDict
-                    obs_ = self.env_dict[level].get_current_obs()
-                    obs_tensor_ = obs_as_tensor(obs_, self.device)
-                    actions_ = actions
-                    _, values_, _ = self.policy.forward(obs_tensor_)
-                    log_probs_ = self.policy.get_distribution(obs_tensor_).log_prob(th.from_numpy(actions_).to(self.device))
+            if n_rollout_steps==(self.num_expt/self.n_envs): # only collect data on other levels during analysis
+                for level in range(1,fine_level):
+                    before = time.time()
+                    # collect rollout in synchronised rollout buffer
+                    with th.no_grad():
+                        # Convert to pytorch tensor or to TensorDict
+                        obs_ = self.env_dict[level].get_current_obs()
+                        obs_tensor_ = obs_as_tensor(obs_, self.device)
+                        actions_ = actions
+                        _, values_, _ = self.policy.forward(obs_tensor_)
+                        log_probs_ = self.policy.get_distribution(obs_tensor_).log_prob(th.from_numpy(actions_).to(self.device))
 
-                rollout_time = time.time() - before
+                    rollout_time = time.time() - before
 
-                # Clip the actions to avoid out of bound error
-                if isinstance(self.action_space, gym.spaces.Box):
-                    clipped_actions_ = np.clip(actions_, self.action_space.low, self.action_space.high)
+                    # Clip the actions to avoid out of bound error
+                    if isinstance(self.action_space, gym.spaces.Box):
+                        clipped_actions_ = np.clip(actions_, self.action_space.low, self.action_space.high)
 
-                new_obs_, rewards_, _, infos_ = env_dict[level].step(clipped_actions_)
+                    new_obs_, rewards_, _, infos_ = env_dict[level].step(clipped_actions_)
 
-                self._update_info_buffer(infos_)
+                    self._update_info_buffer(infos_)
 
-                if isinstance(self.action_space, gym.spaces.Discrete):
-                    # Reshape in case of discrete action
-                    actions_ = actions_.reshape(-1, 1)
+                    if isinstance(self.action_space, gym.spaces.Discrete):
+                        # Reshape in case of discrete action
+                        actions_ = actions_.reshape(-1, 1)
 
-                # Handle timeout by bootstraping with value function
-                # see GitHub issue #633
-                for idx, done in enumerate(dones):
-                    if (
-                        done
-                        and infos_[idx].get("terminal_observation") is not None
-                        and infos_[idx].get("TimeLimit.truncated", False)
-                    ):
-                        terminal_obs = self.policy.obs_to_tensor(infos_[idx]["terminal_observation"])[0]
-                        with th.no_grad():
-                            terminal_value = self.policy.predict_values(terminal_obs)[0]
-                        rewards_[idx] += self.gamma * terminal_value
+                    # Handle timeout by bootstraping with value function
+                    # see GitHub issue #633
+                    for idx, done in enumerate(dones):
+                        if (
+                            done
+                            and infos_[idx].get("terminal_observation") is not None
+                            and infos_[idx].get("TimeLimit.truncated", False)
+                        ):
+                            terminal_obs = self.policy.obs_to_tensor(infos_[idx]["terminal_observation"])[0]
+                            with th.no_grad():
+                                terminal_value = self.policy.predict_values(terminal_obs)[0]
+                            rewards_[idx] += self.gamma * terminal_value
 
-                comp_times = np.array([rollout_time/self.n_envs + self.step_comp_time_dict[level]]*self.n_envs)
-                analysis_rollout_buffer_dict[level].record_times(comp_times)
-                analysis_rollout_buffer_dict[level].add(obs_, actions_, rewards_, self._last_episode_starts, values_, log_probs_)
+                    comp_times = np.array([rollout_time/self.n_envs + self.step_comp_time_dict[level]]*self.n_envs)
+                    analysis_rollout_buffer_dict[level].record_times(comp_times)
+                    analysis_rollout_buffer_dict[level].add(obs_, actions_, rewards_, self._last_episode_starts, values_, log_probs_)
 
-                # env_dict[level].reset_from_dones(dones)
-                last_obs_dict[level] = new_obs_
-                last_values_dict[level] = values_
+                    # env_dict[level].reset_from_dones(dones)
+                    last_obs_dict[level] = new_obs_
+                    last_values_dict[level] = values_
 
             self._last_obs = new_obs
             self._last_episode_starts = dones
@@ -467,11 +468,12 @@ class OnPolicyAlgorithmMultiLevel(BaseAlgorithm):
             values = self.policy.predict_values(obs_as_tensor(new_obs, self.device))
         analysis_rollout_buffer_dict[fine_level].compute_returns_and_advantage(last_values=values, dones=dones)
 
-        for level in range(1,fine_level):
-            with th.no_grad():
-                # Compute value for the last timestep
-                values_ = self.policy.predict_values(obs_as_tensor(last_obs_dict[level], self.device))
-            analysis_rollout_buffer_dict[level].compute_returns_and_advantage(last_values=last_values_dict[level], dones=dones)
+        if n_rollout_steps==(self.num_expt/self.n_envs): # only collect data on other levels during analysis
+            for level in range(1,fine_level):
+                with th.no_grad():
+                    # Compute value for the last timestep
+                    values_ = self.policy.predict_values(obs_as_tensor(last_obs_dict[level], self.device))
+                analysis_rollout_buffer_dict[level].compute_returns_and_advantage(last_values=last_values_dict[level], dones=dones)
 
         
         callback.on_rollout_end()
