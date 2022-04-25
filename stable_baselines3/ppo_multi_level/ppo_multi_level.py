@@ -519,7 +519,7 @@ class PPO_ML(OnPolicyAlgorithmMultiLevel):
         sums = sums/self.num_expt
         var_L = max(sums[5]-sums[4]**2, 1.0e-10) # fix for cases with var = 0
 
-        P_ml, N_l, C_l, C = [],[],[],[]
+        P_ml, N_ml, C_ml, C = [],[],[],[]
         theta=0.25
 
         for eps in self.eps_array:
@@ -528,33 +528,21 @@ class PPO_ML(OnPolicyAlgorithmMultiLevel):
            mlmc_cost = np.dot(Nl,Cl)
            std_cost  = var_L*Cl[min(len(Cl)-1,l)]/((1.0 - theta)*eps**2)
 
-           P_ml.append(P)
-           N_l.append(Nl)
-           C_l.append(Cl)
+           P_ml.append( round(P,4) )
+           N_ml.append( [ int(elem) for elem in Nl ] )
+           C_ml.append( [ round(elem, 2) for elem in Cl ] )
            C.append(std_cost)
 
-        # return Eps, P_ml, N_l, C_l, C
-
-        # N0 = 100
-        # os.makedirs(self.analysis_log_path, exist_ok=True)
-        # analysis_log_file = self.analysis_log_path+'/iter_'+str(self.iteration)+'.txt'
-        # logfile = open(analysis_log_file, 'w')
-        # Eps, P_ml, N_l, C_l, C = mlmc_test(mlmc_fn, self.num_expt, fine_level-1, self.n_init, self.eps_array, fine_level-1, fine_level-1, logfile)
-
         # compute mc estimate
-        C_mc = np.mean(comp_time[fine_level])
-        N_mc = np.ceil( C / C_mc )
+        C_mc = round( np.mean(comp_time[fine_level]) , 2)
+        N_mc = np.ceil( C / C_mc ).astype(int) 
         P_mc = []
         for n in N_mc:
             mc_indices = np.random.choice(loss_dict[fine_level].shape[0],int(n), replace=False)
-            P_mc.append( np.mean(loss_dict[fine_level][mc_indices]) )
-
-        # del logfile
-        # mlmc_plot(analysis_log_file, 3)
-        # plt.savefig(analysis_log_file.replace(".txt", ".pdf"))
+            P_mc.append( round (np.mean(loss_dict[fine_level][mc_indices]), 4 ))
 
         mc_results = {'eps_mc':self.eps_array, 'P_mc':P_mc, 'N_mc':N_mc, 'C_mc':C_mc}
-        ml_results = {'eps_ml':self.eps_array, 'P_ml':P_ml, 'N_ml':N_l, 'C_ml':C_l}
+        ml_results = {'eps_ml':self.eps_array, 'P_ml':P_ml, 'N_ml':N_ml, 'C_ml':C_ml}
 
         return mc_results, ml_results
             
