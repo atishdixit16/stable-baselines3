@@ -129,7 +129,7 @@ def mlmc(Lmin, Lmax, N0, eps, mlmc_fn, alpha_0, beta_0, gamma_0, *args, **kwargs
 
             if rem > numpy.sqrt(theta)*eps:
                 if L == Lmax:
-                    warnings.warn(f"Weak convergence not met root expected mean (rem) ({rem:.2f}) should be smaller than {numpy.sqrt(theta)*eps:.2f} ")
+                    warnings.warn(f"Weak convergence not met, remaning error ({rem:.2f}) should be smaller than {numpy.sqrt(theta)*eps:.2f} ")
                 else:
                     L = L + 1
                     Vl = numpy.append(Vl, Vl[-1] / 2.0**beta)
