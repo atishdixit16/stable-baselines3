@@ -1,6 +1,8 @@
 import numpy
 import numpy.linalg
 
+import warnings
+
 class WeakConvergenceFailure(Exception):
     pass
 
@@ -127,7 +129,7 @@ def mlmc(Lmin, Lmax, N0, eps, mlmc_fn, alpha_0, beta_0, gamma_0, *args, **kwargs
 
             if rem > numpy.sqrt(theta)*eps:
                 if L == Lmax:
-                    raise WeakConvergenceFailure("Failed to achieve weak convergence")
+                    warnings.warn(f"Weak convergence not met room expected mean (rem) {rem} should be smaller than {numpy.sqrt(theta)*eps} ")
                 else:
                     L = L + 1
                     Vl = numpy.append(Vl, Vl[-1] / 2.0**beta)
