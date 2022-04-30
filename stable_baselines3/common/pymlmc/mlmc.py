@@ -99,17 +99,17 @@ def mlmc(Lmin, Lmax, N0, eps, mlmc_fn, alpha_0, beta_0, gamma_0, *args, **kwargs
         # use linear regression to estimate alpha, beta, gamma if not given
         if alpha_0 <= 0:
             A = numpy.ones((L, 2)); A[:, 0] = range(1, L+1)
-            x = numpy.linalg.lstsq(A, numpy.log2(ml[1:]))[0]
+            x = numpy.linalg.lstsq(A, numpy.log2(ml[1:]), rcond=-1)[0]
             alpha = max(0.5, -x[0])
 
         if beta_0 <= 0:
             A = numpy.ones((L, 2)); A[:, 0] = range(1, L+1)
-            x = numpy.linalg.lstsq(A, numpy.log2(Vl[1:]))[0]
+            x = numpy.linalg.lstsq(A, numpy.log2(Vl[1:]), rcond=-1)[0]
             beta = max(0.5, -x[0])
 
         if gamma_0 <= 0:
             A = numpy.ones((L, 2)); A[:, 0] = range(1, L+1)
-            x = numpy.linalg.lstsq(A, numpy.log2(Cl[1:]))[0]
+            x = numpy.linalg.lstsq(A, numpy.log2(Cl[1:]), rcond=-1)[0]
             gamma = max(0.5, x[0])
 
         # set optimal number of additional samples
