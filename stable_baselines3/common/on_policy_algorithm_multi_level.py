@@ -401,7 +401,7 @@ class OnPolicyAlgorithmMultiLevel(BaseAlgorithm):
                         terminal_value = self.policy.predict_values(terminal_obs)[0]
                     rewards[idx] += self.gamma * terminal_value
 
-            comp_times = np.array([rollout_time/self.n_envs + self.step_comp_time_dict[fine_level]]*self.n_envs)
+            comp_times = np.array([self.step_comp_time_dict[fine_level]]*self.n_envs)
             analysis_rollout_buffer_dict[fine_level].record_times(comp_times)
             analysis_rollout_buffer_dict[fine_level].add(self._last_obs, actions, rewards, self._last_episode_starts, values, log_probs)
 
@@ -452,7 +452,7 @@ class OnPolicyAlgorithmMultiLevel(BaseAlgorithm):
                                 terminal_value = self.policy.predict_values(terminal_obs)[0]
                             rewards_[idx] += self.gamma * terminal_value
 
-                    comp_times = np.array([rollout_time/self.n_envs + self.step_comp_time_dict[level]]*self.n_envs)
+                    comp_times = np.array([self.step_comp_time_dict[level]]*self.n_envs)
                     analysis_rollout_buffer_dict[level].record_times(comp_times)
                     analysis_rollout_buffer_dict[level].add(obs_, actions_, rewards_, self._last_episode_starts, values_, log_probs_)
 
