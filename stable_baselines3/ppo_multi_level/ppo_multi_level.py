@@ -129,36 +129,38 @@ class PPO_ML(OnPolicyAlgorithmMultiLevel):
         # because of the advantage normalization
         self.batch_size_dict = batch_size
 
-        for level in self.env_dict.keys():
-            assert (
-                self.batch_size_dict[level] > 1
-            ), "`batch_size` must be greater than 1. See https://github.com/DLR-RM/stable-baselines3/issues/440"
-
-            if self.env_dict[level] is not None:
-                # Check that `n_steps * n_envs > 1` to avoid NaN
-                # when doing advantage normalization
-                buffer_size = self.env_dict[level].num_envs * self.n_steps_dict[level]
+        if env is not None:
+            for level in self.env_dict.keys():
                 assert (
-                    buffer_size > 1
-                ), f"`n_steps * n_envs` must be greater than 1. Currently n_steps={self.n_steps} and n_envs={self.env.num_envs}"
-                # Check that the rollout buffer size is a multiple of the mini-batch size
-                untruncated_batches = buffer_size // self.batch_size_dict[level]
-                if buffer_size % self.batch_size_dict[level] > 0:
-                    warnings.warn(
-                        f"You have specified a mini-batch size of {batch_size[len(batch_size)]},"
-                        f" but because the `RolloutBuffer` is of size `n_steps * n_envs = {buffer_size}`,"
-                        f" after every {untruncated_batches} untruncated mini-batches,"
-                        f" there will be a truncated mini-batch of size {buffer_size % batch_size[0]}\n"
-                        f"We recommend using a `batch_size` that is a factor of `n_steps * n_envs`.\n"
-                        f"Info: (n_steps={self.n_steps} and n_envs={self.env.num_envs})"
-                    )
+                    self.batch_size_dict[level] > 1
+                ), "`batch_size` must be greater than 1. See https://github.com/DLR-RM/stable-baselines3/issues/440"
+
+                if self.env_dict[level] is not None:
+                    # Check that `n_steps * n_envs > 1` to avoid NaN
+                    # when doing advantage normalization
+                    buffer_size = self.env_dict[level].num_envs * self.n_steps_dict[level]
+                    assert (
+                        buffer_size > 1
+                    ), f"`n_steps * n_envs` must be greater than 1. Currently n_steps={self.n_steps} and n_envs={self.env.num_envs}"
+                    # Check that the rollout buffer size is a multiple of the mini-batch size
+                    untruncated_batches = buffer_size // self.batch_size_dict[level]
+                    if buffer_size % self.batch_size_dict[level] > 0:
+                        warnings.warn(
+                            f"You have specified a mini-batch size of {batch_size[len(batch_size)]},"
+                            f" but because the `RolloutBuffer` is of size `n_steps * n_envs = {buffer_size}`,"
+                            f" after every {untruncated_batches} untruncated mini-batches,"
+                            f" there will be a truncated mini-batch of size {buffer_size % batch_size[0]}\n"
+                            f"We recommend using a `batch_size` that is a factor of `n_steps * n_envs`.\n"
+                            f"Info: (n_steps={self.n_steps} and n_envs={self.env.num_envs})"
+                        )
         self.n_epochs = n_epochs
         self.clip_range = clip_range
         self.clip_range_vf = clip_range_vf
         self.target_kl = target_kl
 
         # check multi-level variables
-        self._check_multi_level_variables()
+        if env is not None:
+            self._check_multi_level_variables()
 
         if _init_setup_model:
             self._setup_model()

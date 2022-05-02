@@ -81,7 +81,7 @@ class OnPolicyAlgorithmMultiLevel(BaseAlgorithm):
 
         super(OnPolicyAlgorithmMultiLevel, self).__init__(
             policy=policy,
-            env=env[list(env.keys())[-1]],
+            env=env[list(env.keys())[-1]] if env is not None else env,
             policy_base=policy_base,
             learning_rate=learning_rate,
             policy_kwargs=policy_kwargs,
