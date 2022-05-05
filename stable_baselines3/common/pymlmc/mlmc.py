@@ -145,4 +145,4 @@ def mlmc(Lmin, Lmax, N0, eps, mlmc_fn, alpha_0, beta_0, gamma_0, *args, **kwargs
     # finally, evaluate the multilevel estimator
     P = sum(suml[0,:]/Nl)
 
-    return (P, Nl, Cl)
+    return (P, Nl, Cl, Vl)
