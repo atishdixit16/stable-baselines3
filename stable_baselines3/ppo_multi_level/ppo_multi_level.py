@@ -515,6 +515,17 @@ class PPO_ML(OnPolicyAlgorithmMultiLevel):
 
             return np.array(sums), cost
 
+        l, C_l, V_l, P_l = [],[],[],[]
+        for level in self.env_dict.keys():
+            (sums, cst) = mlmc_fn(level-1, self.num_expt)
+            cst = cst/self.num_expt
+            sums = sums/self.num_expt
+            var = max(sums[5]-sums[4]**2, 1.0e-10) # fix for cases with var = 0
+            grid_l = self.env_dict[level].get_attr('ressim_params')[0].level_dict[level]
+            l.append( str(grid_l[0])+'x'+str(grid_l[1]) )
+            C_l.append(round(cst, 2))
+            V_l.append(round(var, 4))
+            P_l.append(round(np.mean(loss_dict[level]),4))
 
         (sums, cst) = mlmc_fn(fine_level-1, self.num_expt)
         cst = cst/self.num_expt
@@ -533,7 +544,7 @@ class PPO_ML(OnPolicyAlgorithmMultiLevel):
            P_ml.append( round(P,4) )
            N_ml.append( [ int(elem) for elem in Nl ] )
            C_ml.append( [ round(elem, 2) for elem in Cl ] )
-           V_ml.append(round(Vl,4))
+           V_ml.append(Vl)
            C.append(mlmc_cost)
 
         # compute mc estimate
@@ -545,10 +556,11 @@ class PPO_ML(OnPolicyAlgorithmMultiLevel):
             mc_indices = np.random.choice(loss_dict[fine_level].shape[0],int(n), replace=False)
             P_mc.append( round (np.mean(loss_dict[fine_level][mc_indices]), 4 ))
 
+        expt_results = {'N':self.num_expt, 'l': l, 'C_l':C_l, 'V_l':V_l, 'P_l':P_l}
         mc_results = {'eps_mc':self.eps_array, 'P_mc':P_mc, 'N_mc':N_mc, 'C_mc':C_mc, 'V_mc':var_L}
         ml_results = {'eps_ml':self.eps_array, 'P_ml':P_ml, 'N_ml':N_ml, 'C_ml':C_ml, 'V_ml':V_ml}
 
-        return mc_results, ml_results
+        return mc_results, ml_results, expt_results
             
 
     def learn(
