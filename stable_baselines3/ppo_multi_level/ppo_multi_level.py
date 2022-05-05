@@ -540,6 +540,7 @@ class PPO_ML(OnPolicyAlgorithmMultiLevel):
         N_mc = np.ceil( C / C_mc ).astype(int) 
         P_mc = []
         for n in N_mc:
+            assert n <= loss_dict[fine_level].shape[0], f'number of samples `n`({n}) should be smaller than `n_expt`, try increasing `n_expt`({loss_dict[fine_level].shape[0]})'
             mc_indices = np.random.choice(loss_dict[fine_level].shape[0],int(n), replace=False)
             P_mc.append( round (np.mean(loss_dict[fine_level][mc_indices]), 4 ))
 
