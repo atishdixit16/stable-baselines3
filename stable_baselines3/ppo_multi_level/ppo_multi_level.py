@@ -544,7 +544,7 @@ class PPO_ML(OnPolicyAlgorithmMultiLevel):
            P_ml.append( round(P,4) )
            N_ml.append( [ int(elem) for elem in Nl ] )
            C_ml.append( [ round(elem, 2) for elem in Cl ] )
-           V_ml.append(Vl)
+           V_ml.append( [round(elem, 2) for elem in Vl])
            C.append(mlmc_cost)
 
         # compute mc estimate
