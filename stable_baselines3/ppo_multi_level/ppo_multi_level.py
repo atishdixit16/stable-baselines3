@@ -12,7 +12,7 @@ from torch.nn import functional as F
 
 from stable_baselines3.common.on_policy_algorithm_multi_level import OnPolicyAlgorithmMultiLevel
 from stable_baselines3.common.policies import ActorCriticPolicy
-# from stable_baselines3.common.pymlmc import mlmc
+from stable_baselines3.common.pymlmc import mlmc, mlmc_ppo
 from stable_baselines3.common.type_aliases import GymEnv, MaybeCallback, Schedule
 from stable_baselines3.common.utils import explained_variance, get_schedule_fn
 import stable_baselines3.common.pymlmc.mlmc as mlmc
@@ -515,50 +515,7 @@ class PPO_ML(OnPolicyAlgorithmMultiLevel):
 
             return np.array(sums), cost
 
-        l, C_l, V_l, P_l = [],[],[],[]
-        for level in self.env_dict.keys():
-            (sums, cst) = mlmc_fn(level-1, self.num_expt)
-            cst = cst/self.num_expt
-            sums = sums/self.num_expt
-            var = max(sums[5]-sums[4]**2, 1.0e-10) # fix for cases with var = 0
-            grid_l = self.env_dict[level].get_attr('ressim_params')[0].level_dict[level]
-            l.append( str(grid_l[0])+'x'+str(grid_l[1]) )
-            C_l.append(round(cst, 2))
-            V_l.append(round(var, 4))
-            P_l.append(round(np.mean(loss_dict[level]),4))
-
-        (sums, cst) = mlmc_fn(fine_level-1, self.num_expt)
-        cst = cst/self.num_expt
-        sums = sums/self.num_expt
-        var_L = max(sums[5]-sums[4]**2, 1.0e-10) # fix for cases with var = 0
-
-        P_ml, N_ml, C_ml, C, V_ml = [],[],[],[], []
-        theta=0.25
-
-        for eps in self.eps_array:
-           (P, Nl, Cl, Vl) = mlmc(Lmin=fine_level-1, Lmax=fine_level-1, N0=self.n_init, eps=eps, mlmc_fn=mlmc_fn, alpha_0=0, beta_0=0, gamma_0=0)
-           l = len(Nl) - 1
-           mlmc_cost = np.dot(Nl,Cl)
-           std_cost  = var_L*Cl[min(len(Cl)-1,l)]/((1.0 - theta)*eps**2)
-
-           P_ml.append( round(P,4) )
-           N_ml.append( [ int(elem) for elem in Nl ] )
-           C_ml.append( [ round(elem, 2) for elem in Cl ] )
-           V_ml.append( [round(elem, 2) for elem in Vl])
-           C.append(mlmc_cost)
-
-        # compute mc estimate
-        C_mc = round( np.mean(comp_time[fine_level]) , 2)
-        N_mc = np.ceil( C / C_mc ).astype(int) 
-        P_mc = []
-        for n in N_mc:
-            assert n <= loss_dict[fine_level].shape[0], f'number of samples `n`({n}) should be smaller than `n_expt`, try increasing `n_expt`({loss_dict[fine_level].shape[0]})'
-            mc_indices = np.random.choice(loss_dict[fine_level].shape[0],int(n), replace=False)
-            P_mc.append( round (np.mean(loss_dict[fine_level][mc_indices]), 4 ))
-
-        expt_results = {'N':self.num_expt, 'l': l, 'C_l':C_l, 'V_l':V_l, 'P_l':P_l}
-        mc_results = {'eps_mc':self.eps_array, 'P_mc':P_mc, 'N_mc':N_mc, 'C_mc':C_mc, 'V_mc':var_L}
-        ml_results = {'eps_ml':self.eps_array, 'P_ml':P_ml, 'N_ml':N_ml, 'C_ml':C_ml, 'V_ml':V_ml}
+        expt_results, mc_results, ml_results = mlmc_ppo(mlmc_fn, self.num_expt, fine_level-1, self.eps_array)
 
         return mc_results, ml_results, expt_results
             

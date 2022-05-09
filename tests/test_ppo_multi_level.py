@@ -81,8 +81,8 @@ from stable_baselines3.common.monitor import Monitor
 #     assert np.array_equal(return_array, return_ml_array), print(return_array, '\n', return_ml_array)
 
 @pytest.mark.parametrize( "n_steps_dict, wrapper, generate_params, n_exp, comp_time", 
-                          [({1:4, 2:2, 3:1}, SubprocVecMultiLevelEnv, generate_env_case_1_params, 1000, {1:0.116,2:0.12,3:0.13}), 
-                           ({1:4, 2:2, 3:1}, SubprocVecMultiLevelEnv, generate_env_case_2_params, 1000, {1:0.028,2:0.036,3:0.08})] )
+                          [({1:4, 2:2, 3:1}, SubprocVecMultiLevelEnv, generate_env_case_1_params, 3600, {1:0.116,2:0.12,3:0.13}), 
+                           ({1:4, 2:2, 3:1}, SubprocVecMultiLevelEnv, generate_env_case_2_params, 3600, {1:0.028,2:0.036,3:0.08})] )
 def test_functional_ppo_ml_analysis_case_2(n_steps_dict, wrapper, generate_params, n_exp, tmp_path, comp_time):
     # print(get_envs)
 
@@ -115,6 +115,6 @@ def test_functional_ppo_ml_analysis_case_2(n_steps_dict, wrapper, generate_param
     model_ppo_ml = PPO_ML("MlpPolicy", env_dict, verbose=True, **kwargs)
     model_ppo_ml.mlmc_analysis(total_timesteps= n_steps_dict[fine_level]*num_cpu*iter , 
                                n_expt=n_exp, 
-                               eps_array=[2.0, 1.0],
+                               eps_array=[1e-1, 5e-2],
                                analysis_interval=2,
                                step_comp_time_dict=comp_time)
