@@ -81,7 +81,7 @@ from stable_baselines3.common.monitor import Monitor
 #     assert np.array_equal(return_array, return_ml_array), print(return_array, '\n', return_ml_array)
 
 @pytest.mark.parametrize( "n_steps_dict, wrapper, generate_params, n_exp, comp_time", 
-                          [({1:4, 2:2, 3:1}, SubprocVecMultiLevelEnv, generate_env_case_1_params, 3600, {1:0.116,2:0.12,3:0.13}), 
+                          [({1:8, 2:4, 3:2, 4:1}, SubprocVecMultiLevelEnv, generate_env_case_1_params, 3600, {1:0.030,2:0.033,3:0.046,4:0.104}), 
                            ({1:4, 2:2, 3:1}, SubprocVecMultiLevelEnv, generate_env_case_2_params, 3600, {1:0.028,2:0.036,3:0.08})] )
 def test_functional_ppo_ml_analysis_case_2(n_steps_dict, wrapper, generate_params, n_exp, tmp_path, comp_time):
     # print(get_envs)

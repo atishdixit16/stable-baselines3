@@ -595,7 +595,7 @@ class OnPolicyAlgorithmMultiLevel(BaseAlgorithm):
                 self.analysis_rollout_buffer_dict[level].buffer_size = n_rollout_steps
 
             continue_training = self.collect_analysis_rollouts(self.env_dict, callback, self.analysis_rollout_buffer_dict, n_rollout_steps)
-
+        
             if continue_training is False:
                 break
 

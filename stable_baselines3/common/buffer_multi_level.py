@@ -83,8 +83,9 @@ class RolloutBufferMultiLevel(RolloutBuffer):
         # Return everything, don't create minibatches
         if batch_size is None:
             batch_size = self.buffer_size * self.n_envs
-
-        indices = np.random.permutation(self.buffer_size * self.n_envs)
+            indices = list(range(batch_size))
+        else:
+            indices = np.random.permutation(self.buffer_size * self.n_envs)
         
         # Prepare the data
         if not self.generator_ready:
