@@ -115,7 +115,7 @@ def mlmc_ppo(mlmc_fn, N, L, Eps, *args, **kwargs):
     P_ml, N_ml, C_ml, V_ml = [],[],[],[]
     P_mc, N_mc = [],[]
         
-    V_L = var1[0]
+    V_L = var2[-1]
     C_l = []
     for i,_ in enumerate(var2):
         C_array = numpy.array([-1,1]*(i+1))[-(i+1):]*Cl[:(i+1)]
@@ -129,7 +129,7 @@ def mlmc_ppo(mlmc_fn, N, L, Eps, *args, **kwargs):
         C_ml.append( [ round(elem, 2) for elem in Cl ] )
         V_ml.append( [round(elem, 2) for elem in Vl])
         
-        mc_cost  = (V_L*Cl[-1])/((1.0 -theta)*eps**2)
+        mc_cost  = (V_L*C_l[-1])/((1.0 -theta)*eps**2)
         N_mc_ = numpy.ceil( mc_cost/C_l[-1]).astype(int)
         P_mc_ = mc_estimates(mlmc_fn, N_mc_, L)
 
