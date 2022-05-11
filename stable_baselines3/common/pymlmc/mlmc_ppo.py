@@ -136,7 +136,7 @@ def mlmc_ppo(mlmc_fn, N, L, Eps, *args, **kwargs):
         P_mc.append( round(P_mc_,4) )
         N_mc.append( N_mc_ )
         
-    expt_results = {'N':N, 'C_l':[round(c,2) for c in C_l], 'V_l':[round(v,2) for v in var2], 'P_l':[round(p,4) for p in suml[0, :]/N]}
+    expt_results = {'N':N, 'C_l':[round(c,2) for c in C_l], 'V_l':[round(v,2) for v in var2], 'P_l':[round(p,4) for p in del2]}
     mc_results = {'eps_mc':Eps, 'P_mc':P_mc, 'N_mc':N_mc, 'C_mc':round(C_l[-1],2), 'V_mc':round(V_L,2)}
     ml_results = {'eps_ml':Eps, 'P_ml':P_ml, 'N_ml':N_ml, 'C_ml':C_ml, 'V_ml':V_ml, 'a,b,g':[round(alpha,2), round(beta,2), round(gamma,2)]}
 
@@ -144,7 +144,7 @@ def mlmc_ppo(mlmc_fn, N, L, Eps, *args, **kwargs):
 
 def mc_estimates(mlmc_fn, N, L, *args, **kwargs):
     (sums, _) = mlmc_fn(L, N, *args, **kwargs)
-    return sums[0]/N
+    return sums[4]/N
 
 
 def mlmc_estimates(mlmc_fn, Vl, Cl, eps, theta, alpha, *args, **kwargs):
