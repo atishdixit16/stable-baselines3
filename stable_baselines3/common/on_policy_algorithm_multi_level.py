@@ -619,6 +619,7 @@ class OnPolicyAlgorithmMultiLevel(BaseAlgorithm):
                 print(f'analysis of MLMC estimator for {self.num_expt} number of experimets...')
                 mc_results, ml_results, expt_results = self.analysis()
                 self.analysis_report['iter '+str(int(self.iteration))] = {}
+                self.analysis_report['iter '+str(int(self.iteration))]['expt_results'] = expt_results
                 self.analysis_report['iter '+str(int(self.iteration))]['mc_results'] = mc_results
                 self.analysis_report['iter '+str(int(self.iteration))]['ml_results'] = ml_results
 
