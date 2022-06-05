@@ -2,14 +2,12 @@ import numpy as np
 import gym
 import functools
 
-from numpy import sum, mean
-from scipy.stats import hmean
 from gym import spaces
 from gym.utils import seeding
 
 from stable_baselines3.common.envs.multi_level_model.ressim import SaturationEquation, PressureEquation
 from stable_baselines3.common.envs.multi_level_model.utils import linear_mobility, quadratic_mobility, lamb_fn, f_fn, df_fn
-from stable_baselines3.common.envs.multi_level_model.level_mapping_functions import coarse_to_fine_mapping, get_accmap, fine_to_coarse_mapping
+from stable_baselines3.common.envs.multi_level_model.level_mapping_functions import coarse_to_fine_mapping, get_partition_ind, fine_to_coarse_mapping
 from stable_baselines3.common.envs.multi_level_model.ressim import Grid
 
 class RessimParams():
@@ -104,7 +102,7 @@ class RessimParams():
                          ny=self.level_dict[L][1],
                          lx=self.grid.lx,
                          ly=self.grid.ly)
-        self.accmap = get_accmap(fine_grid, self.grid)
+        self.partition_ind = get_partition_ind(fine_grid.nx, fine_grid.ny, self.grid.nx, self.grid.ny)
 
     def set_k(self, k):
         assert k.ndim==3, 'Invalid value k. n permeabilities should be provided as a numpy array with shape (n,grid.nx, grid.ny)'
@@ -136,13 +134,13 @@ class RessimEnvParamGenerator():
                            ny=self.ressim_params.level_dict[level][1],
                            lx=self.ressim_params.grid.lx,
                            ly=self.ressim_params.grid.ly)
-        accmap = get_accmap(self.ressim_params.grid, coarse_grid)
-        coarse_phi = fine_to_coarse_mapping(self.ressim_params.phi, accmap, func=mean)
-        coarse_q = fine_to_coarse_mapping(self.ressim_params.q, accmap, func=sum)
-        coarse_s = fine_to_coarse_mapping(self.ressim_params.s, accmap, func=mean)
+        partition_ind = get_partition_ind(self.ressim_params.grid.nx, self.ressim_params.grid.ny, coarse_grid.nx, coarse_grid.ny)
+        coarse_phi = fine_to_coarse_mapping(self.ressim_params.phi, partition_ind, func='mean')
+        coarse_q = fine_to_coarse_mapping(self.ressim_params.q, partition_ind, func='sum')
+        coarse_s = fine_to_coarse_mapping(self.ressim_params.s, partition_ind, func='mean')
         coarse_k = []
         for k in self.ressim_params.k_list:
-            coarse_k.append(fine_to_coarse_mapping(k, accmap, func=hmean))
+            coarse_k.append(fine_to_coarse_mapping(k, partition_ind, func='hmean'))
         coarse_k = np.array(coarse_k)
 
         coarse_params = tuple((coarse_grid, 
@@ -220,11 +218,11 @@ class MultiLevelRessimEnv(gym.Env):
         return np.hstack((np.abs(inj_flow), np.abs(prod_flow)))
 
     def Phi_a(self, q) -> None:
-        self.env_action = fine_to_coarse_mapping(q, self.ressim_params.accmap, func=sum)
+        self.env_action = fine_to_coarse_mapping(q, self.ressim_params.partition_ind, func='sum')
         
     def Phi_s(self) -> None:
-        s_fine = coarse_to_fine_mapping(self.state['s'], self.ressim_params.accmap)
-        p_fine = coarse_to_fine_mapping(self.state['p'], self.ressim_params.accmap)
+        s_fine = coarse_to_fine_mapping(self.state['s'], self.ressim_params.partition_ind)
+        p_fine = coarse_to_fine_mapping(self.state['p'], self.ressim_params.partition_ind)
         return s_fine, p_fine
 
     def phi_s(self, s_fine, p_fine):
@@ -310,16 +308,16 @@ class MultiLevelRessimEnv(gym.Env):
         
         if level_from > level_to:
             # fine to coarse mapping
-            accmap = get_accmap(grid_from, grid_to)
-            s = fine_to_coarse_mapping(state['s'], accmap, func=mean)
-            p = fine_to_coarse_mapping(state['p'], accmap, func=mean)
+            partition_ind = get_partition_ind(grid_from.nx, grid_from.ny, grid_to.nx, grid_to.ny)
+            s = fine_to_coarse_mapping(state['s'], partition_ind, func='mean')
+            p = fine_to_coarse_mapping(state['p'], partition_ind, func='mean')
             self.set_dynamic_parameters(s,p,k_index,episode_step)
             self.update_current_obs()
         else:
             # coarse to fine mapping
-            accmap = get_accmap(grid_to, grid_from)
-            s = coarse_to_fine_mapping(state['s'], accmap)
-            p = coarse_to_fine_mapping(state['p'], accmap)
+            partition_ind = get_partition_ind(grid_to.nx, grid_to.ny, grid_from.nx, grid_from.ny)
+            s = coarse_to_fine_mapping(state['s'], partition_ind)
+            p = coarse_to_fine_mapping(state['p'], partition_ind)
             self.set_dynamic_parameters(s,p,k_index,episode_step)
             self.update_current_obs()
 
@@ -336,3 +334,4 @@ class MultiLevelRessimEnv(gym.Env):
 
     def set_k(self, k):
         self.ressim_params.set_k(k)
+
