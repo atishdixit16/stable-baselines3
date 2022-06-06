@@ -181,7 +181,7 @@ class PPO_ML(OnPolicyAlgorithmMultiLevel):
             assert t/m==ratio, "ratio of n_steps to batch_size should be equal on all levels"
 
         # make sure to set kl_target to None
-        assert self.target_kl==None, 'set target kl to None since the kl-based learning truncation is not considered in multi-level implementation'
+        # assert self.target_kl==None, 'set target kl to None since the kl-based learning truncation is not considered in multi-level implementation'
 
     def _setup_model(self) -> None:
         super(PPO_ML, self)._setup_model()
@@ -322,15 +322,15 @@ class PPO_ML(OnPolicyAlgorithmMultiLevel):
 
                     if self.target_kl is not None and approx_kl_div > 1.5 * self.target_kl:
                         continue_training = False
-                        if self.verbose >= 1:
-                            print(f"Early stopping at step {epoch} due to reaching max kl: {approx_kl_div:.2f}")
-                        break
+                        # break
                     loss_l = policy_loss + self.ent_coef * entropy_loss + self.vf_coef * value_loss
                     loss_mlmc += loss_l
                 
                 self.update_policy(loss_mlmc)
 
             if not continue_training:
+                if self.verbose >= 1:
+                    print(f"Early stopping at step {epoch} due to reaching max kl: {approx_kl_div:.2f}")
                 break
 
         self._n_updates += self.n_epochs

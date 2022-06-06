@@ -24,7 +24,7 @@ def test_functional_ppo_ml(tmp_path, n_steps_dict, batch_size_dict, wrapper, gen
     params_generator = RessimEnvParamGenerator(params_input)
 
     env_dict = {}
-    iter=2
+    iter=6
     n_actor = 8
     for level in params_input.level_dict.keys():
         params = params_generator.get_level_env_params(level)
@@ -34,7 +34,7 @@ def test_functional_ppo_ml(tmp_path, n_steps_dict, batch_size_dict, wrapper, gen
                                         env_kwargs= {"ressim_params":params, "level":level}, 
                                         vec_env_cls=wrapper )
 
-    kwargs = dict(n_steps=n_steps_dict, batch_size=batch_size_dict, n_epochs=1, seed=1, device='cpu')
+    kwargs = dict(n_steps=n_steps_dict, batch_size=batch_size_dict, n_epochs=1, seed=1, device='cpu', target_kl=1e-2)
     model_ppo_ml = PPO_ML("MlpPolicy", env_dict, verbose=True, **kwargs)
     model_ppo_ml.learn(sum(n_steps_dict.values())*n_actor*iter)
 
@@ -108,7 +108,7 @@ def test_functional_ppo_ml_analysis_case_2(n_steps_dict, wrapper, generate_param
                                         vec_env_cls=wrapper )
         batch_size_dict[level] = n_steps_dict[level]*num_cpu
 
-    kwargs = dict(n_steps=n_steps_dict, batch_size=batch_size_dict, n_epochs=1, seed=1, device='cpu')
+    kwargs = dict(n_steps=n_steps_dict, batch_size=batch_size_dict, n_epochs=5, seed=1, device='cpu', target_kl=1e-1)
 
     iter=4
     fine_level = len(n_steps_dict)
