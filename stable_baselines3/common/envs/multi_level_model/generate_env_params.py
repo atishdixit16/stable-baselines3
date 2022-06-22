@@ -15,7 +15,7 @@ def generate_env_case_1_params():
     dt, nstep, terminal_step = 5, 5, 5
     ooip = grid.lx * grid.ly * phi[0,0] * (1 - s_wir - s_oir) # original oil in place
     total_time = nstep*terminal_step*dt
-    Q = ooip/total_time 
+    Q = 0.7*(ooip/total_time )
     q = np.zeros(grid.shape)
     q[::2,0] = Q/round(grid.nx/2)
     q[::2,-1] = -Q/round(grid.nx/2)
@@ -27,7 +27,7 @@ def generate_env_case_1_params():
     # generate random training and evaluation samples
     k = batch_generate(nx=grid.nx, ny=grid.ny, lx=grid.lx, ly=grid.ly, 
                        channel_k=high_log_k, base_k=low_log_k, channel_width_range=(0.1,0.3), 
-                       sample_size=9, seed=1)
+                       sample_size=16, seed=1)
     md_m2_conv = 1/1.01325e+15
     k = md_m2_conv*np.exp(k)
     level_dict = {1:[8,8], 2:[15,15], 3:[30, 30], 4:[61,61]}
@@ -51,8 +51,9 @@ def generate_env_case_2_params():
     total_time = nstep*terminal_step*dt
     Q = ooip/total_time 
     q = np.zeros(grid.shape)
-    q[::2,0] = Q/round(grid.nx/2)
-    q[::2,-1] = -Q/round(grid.nx/2)
+    q[::15, 15] = Q/7
+    q[::15, 0] = -Q/14
+    q[::15, -1] = -Q/14
     s = np.ones(grid.shape)*s_wir
 
     tarbert_log_mean = 2.41

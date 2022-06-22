@@ -1,6 +1,7 @@
 from asyncio.constants import LOG_THRESHOLD_FOR_CONNLOST_WRITES
 import time
 from typing import Any, Dict, List, Optional, Tuple, Type, Union
+from colorlog import info
 
 import gym
 import numpy as np
@@ -266,9 +267,9 @@ class OnPolicyAlgorithmMultiLevel(BaseAlgorithm):
                     if isinstance(self.action_space, gym.spaces.Box):
                         clipped_actions_ = np.clip(actions_, self.action_space.low, self.action_space.high)
 
-                    new_obs_, rewards_, _, infos_ = env_dict[level-1].step(clipped_actions_)
+                    new_obs_, rewards_, _, _ = env_dict[level-1].step(clipped_actions_)
 
-                    self._update_info_buffer(infos_)
+                    # self._update_info_buffer(infos_)
 
                     if isinstance(self.action_space, gym.spaces.Discrete):
                         # Reshape in case of discrete action
@@ -279,10 +280,10 @@ class OnPolicyAlgorithmMultiLevel(BaseAlgorithm):
                     for idx, done in enumerate(dones):
                         if (
                             done
-                            and infos_[idx].get("terminal_observation") is not None
-                            and infos_[idx].get("TimeLimit.truncated", False)
+                            and infos[idx].get("terminal_observation") is not None
+                            and infos[idx].get("TimeLimit.truncated", False)
                         ):
-                            terminal_obs = self.policy.obs_to_tensor(infos_[idx]["terminal_observation"])[0]
+                            terminal_obs = self.policy.obs_to_tensor(infos[idx]["terminal_observation"])[0]
                             with th.no_grad():
                                 terminal_value = self.policy.predict_values(terminal_obs)[0]
                             rewards_[idx] += self.gamma * terminal_value
@@ -527,6 +528,10 @@ class OnPolicyAlgorithmMultiLevel(BaseAlgorithm):
                 fps = int((self.num_timesteps - self._num_timesteps_at_start) / (time.time() - self.start_time))
                 self.logger.record("time/iterations", iteration, exclude="tensorboard")
                 if len(self.ep_info_buffer) > 0 and len(self.ep_info_buffer[0]) > 0:
+
+                    # for i, ep_info in enumerate(self.ep_info_buffer):
+                    #     print(f'{i} -> r: {ep_info["r"]}, l: {ep_info["l"]}')
+
                     self.logger.record("rollout/ep_rew_mean", safe_mean([ep_info["r"] for ep_info in self.ep_info_buffer]))
                     self.logger.record("rollout/ep_len_mean", safe_mean([ep_info["l"] for ep_info in self.ep_info_buffer]))
                 self.logger.record("time/fps", fps)

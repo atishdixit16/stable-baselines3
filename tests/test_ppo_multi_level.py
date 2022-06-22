@@ -15,8 +15,8 @@ from stable_baselines3.common.evaluation import evaluate_policy
 from stable_baselines3.common.monitor import Monitor
 
 @pytest.mark.parametrize( "tmp_path, n_steps_dict, batch_size_dict , wrapper, generate_params", 
-                          [("case_1", {1:8, 2:4, 3:2, 4:1}, {1:16, 2:8, 3:4, 4:2}, SubprocVecMultiLevelEnv, generate_env_case_1_params),
-                           ("case_2", {1:12, 2:6, 3:3},{1:12, 2:6, 3:3}, SubprocVecMultiLevelEnv, generate_env_case_2_params)] )
+                          [("case_1", {1:30, 2:20, 3:10, 4:5}, {1:30, 2:20, 3:10, 4:5}, SubprocVecMultiLevelEnv, generate_env_case_1_params),
+                           ("case_2", {1:15, 2:10, 3:5},{1:15, 2:10, 3:5}, SubprocVecMultiLevelEnv, generate_env_case_2_params)] )
 def test_functional_ppo_ml(tmp_path, n_steps_dict, batch_size_dict, wrapper, generate_params):
     # print(get_envs)
     
@@ -24,8 +24,8 @@ def test_functional_ppo_ml(tmp_path, n_steps_dict, batch_size_dict, wrapper, gen
     params_generator = RessimEnvParamGenerator(params_input)
 
     env_dict = {}
-    iter=6
-    n_actor = 8
+    iter=2
+    n_actor = 2
     for level in params_input.level_dict.keys():
         params = params_generator.get_level_env_params(level)
         env_dict[level] = make_vec_env( MultiLevelRessimEnv, 
@@ -34,7 +34,7 @@ def test_functional_ppo_ml(tmp_path, n_steps_dict, batch_size_dict, wrapper, gen
                                         env_kwargs= {"ressim_params":params, "level":level}, 
                                         vec_env_cls=wrapper )
 
-    kwargs = dict(n_steps=n_steps_dict, batch_size=batch_size_dict, n_epochs=1, seed=1, device='cpu', target_kl=1e-2)
+    kwargs = dict(n_steps=n_steps_dict, batch_size=batch_size_dict, n_epochs=1, seed=1, device='cpu', target_kl=1e-3)
     model_ppo_ml = PPO_ML("MlpPolicy", env_dict, verbose=True, **kwargs)
     model_ppo_ml.learn(sum(n_steps_dict.values())*n_actor*iter)
 
@@ -81,8 +81,8 @@ def test_benchmark_ppo_ml(n_steps_dict, batch_size_dict, wrapper, generate_param
     assert np.array_equal(return_array, return_ml_array), print(return_array, '\n', return_ml_array)
 
 @pytest.mark.parametrize( "n_steps_dict, wrapper, generate_params, n_exp, comp_time", 
-                          [({ 1:4, 2:2, 3:1}, SubprocVecMultiLevelEnv, generate_env_case_1_params, 3600, {1:0.033,2:0.046,3:0.104}),
-                           ({1:4, 2:2, 3:1}, SubprocVecMultiLevelEnv, generate_env_case_2_params, 3600, {1:0.028,2:0.036,3:0.08})] )
+                          [({ 1:20, 2:10, 3:5}, SubprocVecMultiLevelEnv, generate_env_case_1_params, 3600, {1:0.033,2:0.046,3:0.104}),
+                           ({1:20, 2:10, 3:5}, SubprocVecMultiLevelEnv, generate_env_case_2_params, 3600, {1:0.028,2:0.036,3:0.08})] )
 def test_functional_ppo_ml_analysis_case_2(n_steps_dict, wrapper, generate_params, n_exp, tmp_path, comp_time):
     # print(get_envs)
 
