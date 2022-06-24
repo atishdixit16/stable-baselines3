@@ -1,7 +1,6 @@
 from asyncio.constants import LOG_THRESHOLD_FOR_CONNLOST_WRITES
 import time
 from typing import Any, Dict, List, Optional, Tuple, Type, Union
-from colorlog import info
 
 import gym
 import numpy as np
