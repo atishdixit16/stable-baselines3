@@ -14,6 +14,15 @@ def sum_(x):
     return np.sum(x)
 
 @jit(nopython=True)
+def get_partition(l,n): 
+    p=[0] 
+    for i in range(l%n): 
+        p.append(p[-1]+l//n+1) 
+    for i in range(n-l%n): 
+        p.append(p[-1]+l//n) 
+    return p 
+
+@jit(nopython=True)
 def get_partition_ind(fine_grid_nx, fine_grid_ny, coarse_grid_nx, coarse_grid_ny):
     
     '''
@@ -21,9 +30,8 @@ def get_partition_ind(fine_grid_nx, fine_grid_ny, coarse_grid_nx, coarse_grid_ny
     
     ''' 
     
-    dx, dy = int( fine_grid_nx/coarse_grid_nx ) , int(fine_grid_ny/coarse_grid_ny)
-    p_1 = [i*dx for i in range(coarse_grid_nx)]; p_1.append(fine_grid_nx)
-    p_0 = [i*dy for i in range(coarse_grid_ny)]; p_0.append(fine_grid_ny) 
+    p_1 = get_partition(fine_grid_nx, coarse_grid_nx)
+    p_0 = get_partition(fine_grid_ny, coarse_grid_ny) 
     
     return (p_0, p_1)
 
