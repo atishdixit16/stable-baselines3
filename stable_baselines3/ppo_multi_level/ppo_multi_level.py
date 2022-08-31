@@ -12,10 +12,9 @@ from torch.nn import functional as F
 
 from stable_baselines3.common.on_policy_algorithm_multi_level import OnPolicyAlgorithmMultiLevel
 from stable_baselines3.common.policies import ActorCriticPolicy
-from stable_baselines3.common.pymlmc import mlmc, mlmc_ppo
+from stable_baselines3.common.pymlmc import mlmc_ppo
 from stable_baselines3.common.type_aliases import GymEnv, MaybeCallback, Schedule
 from stable_baselines3.common.utils import explained_variance, get_schedule_fn
-import stable_baselines3.common.pymlmc.mlmc as mlmc
 
 
 

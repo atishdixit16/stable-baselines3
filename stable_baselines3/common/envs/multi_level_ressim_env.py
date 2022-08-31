@@ -191,7 +191,7 @@ class MultiLevelRessimEnv(gym.Env):
         self.np_random, seed = seeding.np_random(seed)
         return [seed]
 
-    def phi_a(self, policy_action):
+    def decode_action(self, policy_action):
         
         # convert input array into producer/injector 
         inj_flow = policy_action[:self.ressim_params.n_inj] / np.sum(policy_action[:self.ressim_params.n_inj])
@@ -211,15 +211,15 @@ class MultiLevelRessimEnv(gym.Env):
         return q
 
 
-    def Phi_a(self, q) -> None:
+    def phi(self, q) -> None:
         self.env_action = fine_to_coarse_mapping(q, self.ressim_params.partition_ind, func='sum')
         
-    def Phi_s(self) -> None:
+    def psi(self) -> None:
         s_fine = coarse_to_fine_mapping(self.state['s'], self.ressim_params.partition_ind)
         p_fine = coarse_to_fine_mapping(self.state['p'], self.ressim_params.partition_ind)
         return s_fine, p_fine
 
-    def phi_s(self, s_fine, p_fine):
+    def generate_obs(self, s_fine, p_fine):
         obs_sat = s_fine[self.ressim_params.p_x, self.ressim_params.p_y]
 
         # scale pressure into the range [-1,1]
@@ -261,11 +261,11 @@ class MultiLevelRessimEnv(gym.Env):
         return self.state, reward, done, {}
 
     def step(self, policy_action):
-        q_fine = self.phi_a(policy_action)
-        self.Phi_a(q_fine)
+        q_fine = self.decode_action(policy_action)
+        self.phi(q_fine)
         _, reward, done, info = self.simulation_step()
-        s_fine, p_fine = self.Phi_s()
-        self.phi_s(s_fine, p_fine)
+        s_fine, p_fine = self.psi()
+        self.generate_obs(s_fine, p_fine)
         return self.obs, reward, done, info
 
     def reset(self):
@@ -279,14 +279,14 @@ class MultiLevelRessimEnv(gym.Env):
         e = 0
         self.set_dynamic_parameters(s,p,k_index,e)
 
-        s_fine, p_fine = self.Phi_s()
-        self.phi_s(s_fine, p_fine)
+        s_fine, p_fine = self.psi()
+        self.generate_obs(s_fine, p_fine)
 
         return self.obs
 
     def update_current_obs(self):
-        s_fine, p_fine = self.Phi_s()
-        self.phi_s(s_fine, p_fine)
+        s_fine, p_fine = self.psi()
+        self.generate_obs(s_fine, p_fine)
 
     def set_dynamic_parameters(self, s, p, k_index, e):
         # dynamic parameters

@@ -6,9 +6,6 @@ from math import sqrt
 import sys
 import warnings
 
-from stable_baselines3.common.pymlmc.mlmc_fn import mlmc_fn
-
-from .mlmc import mlmc
 
 def mlmc_ppo(mlmc_fn, N, L, Eps, *args, **kwargs):
     """
