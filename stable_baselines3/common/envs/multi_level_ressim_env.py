@@ -290,12 +290,11 @@ class MultiLevelRessimEnv(gym.Env):
 
     def set_dynamic_parameters(self, s, p, k_index, e):
         # dynamic parameters
-        self.state = {'s':s, 'p':p}
-        self.k_index = k_index
-        self.k_load = self.ressim_params.k_list[self.k_index]
+        self.state = {'s':s, 'p':p, 'k_index':k_index}
+        self.k_load = self.ressim_params.k_list[self.state['k_index']]
         self.episode_step = e
 
-    def map_from_(self, grid, level, state, k_index, episode_step):
+    def map_from_(self, grid, level, state, episode_step):
 
         grid_from, level_from = grid, level
         grid_to, level_to = self.ressim_params.grid, self.level
@@ -305,14 +304,14 @@ class MultiLevelRessimEnv(gym.Env):
             partition_ind = get_partition_ind(grid_from.nx, grid_from.ny, grid_to.nx, grid_to.ny)
             s = fine_to_coarse_mapping(state['s'], partition_ind, func='mean')
             p = fine_to_coarse_mapping(state['p'], partition_ind, func='mean')
-            self.set_dynamic_parameters(s,p,k_index,episode_step)
+            self.set_dynamic_parameters(s,p,state['k_index'],episode_step)
             self.update_current_obs()
         else:
             # coarse to fine mapping
             partition_ind = get_partition_ind(grid_to.nx, grid_to.ny, grid_from.nx, grid_from.ny)
             s = coarse_to_fine_mapping(state['s'], partition_ind)
             p = coarse_to_fine_mapping(state['p'], partition_ind)
-            self.set_dynamic_parameters(s,p,k_index,episode_step)
+            self.set_dynamic_parameters(s,p,state['k_index'],episode_step)
             self.update_current_obs()
 
 
@@ -321,10 +320,9 @@ class MultiLevelRessimEnv(gym.Env):
         grid = env.ressim_params.grid
         level = env.level
         state = env.state
-        k_index = env.k_index
         episode_step = env.episode_step
 
-        self.map_from_(grid, level, state, k_index, episode_step)
+        self.map_from_(grid, level, state, episode_step)
 
     def set_k(self, k):
         self.ressim_params.set_k(k)

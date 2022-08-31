@@ -29,10 +29,9 @@ class SubprocVecMultiLevelEnv(SubprocVecEnv):
         grids = env.get_attr('grid')
         levels = env.get_attr('level')
         states = env.get_attr('state')
-        k_indices = env.get_attr('k_index')
         episode_steps = env.get_attr('episode_step')
 
         target_remotes = self._get_target_remotes(None)
-        for remote, grid, level, state, k_index, episode_step in zip(target_remotes, grids, levels, states, k_indices, episode_steps):
-            remote.send( ("env_method", ("map_from_", (grid, level, state, k_index, episode_step), method_kwargs ) ) )
+        for remote, grid, level, state, episode_step in zip(target_remotes, grids, levels, states, episode_steps):
+            remote.send( ("env_method", ("map_from_", (grid, level, state, episode_step), method_kwargs ) ) )
         return [remote.recv() for remote in target_remotes]
