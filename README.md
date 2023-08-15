@@ -1,7 +1,20 @@
-<img src="docs/\_static/img/logo.png" align="right" width="40%"/>
-
 [![pipeline status](https://gitlab.com/araffin/stable-baselines3/badges/master/pipeline.svg)](https://gitlab.com/araffin/stable-baselines3/-/commits/master) [![Documentation Status](https://readthedocs.org/projects/stable-baselines/badge/?version=master)](https://stable-baselines3.readthedocs.io/en/master/?badge=master) [![coverage report](https://gitlab.com/araffin/stable-baselines3/badges/master/coverage.svg)](https://gitlab.com/araffin/stable-baselines3/-/commits/master)
 [![codestyle](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
+
+# Stable Baselines3 Fork: Introducing the Multilevel PPO Algorithm 
+
+In this fork, I introduce a novel extension to the conventional PPO algorithm – the Multilevel Proximal Policy Optimization (MLPPO) algorithm. This advancement embodies the principles of multilevel reinforcement learning, meticulously detailed in the accompanying [paper](https://arxiv.org/abs/2210.08400).
+
+The code implementation for the MLPPO algorithm is accessible within the repository under the path `stable_baselines3/ppo_multi_level`. Comprehensive insights into the algorithm's mechanics are expounded in Appendix C of the same [paper](https://arxiv.org/abs/2210.08400).
+
+I present two illustrative trial scenarios involving multilevel environments. These environments are created using a Python script found at `stable_baselines3/common/envs/multi_level_ressim_env.py`. The intricate design and execution specifics of these case studies are available in the corresponding [GitHub repository](https://github.com/atishdixit16/multilevel_ppo): `https://github.com/atishdixit16/multilevel_ppo`.
+
+Installation of this upgraded version mirrors the procedure for the main repository, outlined below. Alternatively, users are free to opt for manual installation by downloading this repository.
+
+For a comprehensive understanding of the core functionality, kindly refer to the `README` from the main repository provided below.
+
+
+<img src="docs/\_static/img/logo.png" align="right" width="40%"/>
 
 
 # Stable Baselines3
