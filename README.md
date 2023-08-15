@@ -9,10 +9,22 @@ The code implementation for the MLPPO algorithm is accessible within the reposit
 
 I present two illustrative trial scenarios involving multilevel environments. These environments are created using a Python script found at `stable_baselines3/common/envs/multi_level_ressim_env.py`. The intricate design and execution specifics of these case studies are available in the corresponding [GitHub repository](https://github.com/atishdixit16/multilevel_ppo): `https://github.com/atishdixit16/multilevel_ppo`.
 
-Installation of this upgraded version mirrors the procedure for the main repository, outlined below. Alternatively, users are free to opt for manual installation by downloading this repository.
+The installation process for this enhanced version closely follows the steps outlined for the main repository, as detailed below. Alternatively, users have the flexibility to perform a manual installation by downloading this repository, much like the approach demonstrated in the [GitHub repository](https://github.com/atishdixit16/multilevel_ppo).
+
+## Citing the Project
+
+To cite this repository in publications:
+
+```bibtex
+@article{stable-baselines3,
+  author  = {Atish Dixit, Ahmed H. Elsheikh},
+  title   = {Stable Baselines3 Fork: Introducing the Multilevel PPO Algorithm},
+  year    = {2022},
+  url     = {https://arxiv.org/pdf/2210.08400.pdf}
+}
+```
 
 For a comprehensive understanding of the core functionality, kindly refer to the `README` from the main repository provided below.
-
 
 <img src="docs/\_static/img/logo.png" align="right" width="40%"/>
 
