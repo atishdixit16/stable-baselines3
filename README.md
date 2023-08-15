@@ -16,11 +16,13 @@ The installation process for this enhanced version closely follows the steps out
 To cite this repository in publications:
 
 ```bibtex
-@article{stable-baselines3,
-  author  = {Atish Dixit, Ahmed H. Elsheikh},
-  title   = {Stable Baselines3 Fork: Introducing the Multilevel PPO Algorithm},
-  year    = {2022},
-  url     = {https://arxiv.org/pdf/2210.08400.pdf}
+@misc{dixit2022multilevel,
+      title={A Multilevel Reinforcement Learning Framework for PDE-based Control}, 
+      author={Atish Dixit and Ahmed Elsheikh},
+      year={2022},
+      eprint={2210.08400},
+      archivePrefix={arXiv},
+      primaryClass={cs.LG}
 }
 ```
 
