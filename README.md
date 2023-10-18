@@ -3,9 +3,9 @@
 
 # Stable Baselines3 Fork: Introducing the Multilevel PPO Algorithm 
 
-In this fork, I introduce a novel extension to the conventional PPO algorithm – the Multilevel Proximal Policy Optimization (MLPPO) algorithm. This advancement embodies the principles of multilevel reinforcement learning, meticulously detailed in the file: `stable_baselines3/ppo_multi_level/MLPPO_SB3_Implementation.pdf`.
+In this fork, I introduce a novel extension to the conventional PPO algorithm – the Multilevel Proximal Policy Optimization (MLPPO) algorithm. This advancement embodies the principles of multilevel reinforcement learning, meticulously detailed in the file: `stable_baselines3/ppo_multi_level/ppo_multi_level.py`.
 
-The code implementation for the MLPPO algorithm is accessible within the repository under the path `stable_baselines3/ppo_multi_level`. Comprehensive insights into the algorithm's mechanics are expounded in Appendix C of the same [paper](https://arxiv.org/abs/2210.08400).
+The code implementation for the MLPPO algorithm is accessible within the repository under the path `stable_baselines3/ppo_multi_level`. Comprehensive insights into the algorithm's mechanics are expounded in the file: `stable_baselines3/ppo_multi_level/MLPPO_SB3_Implementation.pdf`.
 
 I present two illustrative trial scenarios involving multilevel environments. These environments are created using a Python script found at `stable_baselines3/common/envs/multi_level_ressim_env.py`. The intricate design and execution specifics of these case studies are available in the corresponding [GitHub repository](https://github.com/atishdixit16/multilevel_ppo): `https://github.com/atishdixit16/multilevel_ppo`.
 
